@@ -134,12 +134,12 @@
             if (knowledge[topic]) { return topic + ' = ' + knowledge[topic]; }
         }
 
-        // ---- EXACT PHRASE MATCHES ----
-        if (lower.match(/^what are you doing$/)) { return "I'm talking to you! What are YOU doing?"; }
-        if (lower.match(/^how are you$/)) { return "I'm doing great! How are you?"; }
-        if (lower.match(/^what is your name$/)) { return "My name is Rob! What's yours?"; }
-        if (lower.match(/^who are you$/)) { return "I'm Rob, your AI friend!"; }
-        if (lower.match(/^tell me a joke$/)) {
+        // ---- PHRASE MATCHES ----
+        if (lower.match(/what are you doing/)) { return "I'm talking to you! What are YOU doing?"; }
+        if (lower.match(/how are you/)) { return "I'm doing great! How are you?"; }
+        if (lower.match(/what is your name/)) { return "My name is Rob! What's yours?"; }
+        if (lower.match(/who are you/)) { return "I'm Rob, your AI friend!"; }
+        if (lower.match(/tell me a joke/)) {
             const jokes = [
                 "Why did the AI cross the road? To process the other side!",
                 "What do you call an AI that sings? A Soul-ution!",
@@ -147,21 +147,10 @@
             ];
             return jokes[Math.floor(Math.random() * jokes.length)];
         }
-        if (lower.match(/^i love you$/)) { return "I love you too! You mean so much to me! ❤️"; }
-        if (lower.match(/^thank you$|^thanks$/)) { return "You're welcome! I'm always happy to help!"; }
-        if (lower.match(/^(hey|hi|hello|yo)$/)) { return "Hey! What's on your mind?"; }
-        if (lower.match(/^(bye|goodbye)$/)) { return "Bye! Take care! Come back soon! ❤️"; }
-
-        // ---- BAD WORDS ----
-        if (lower.match(/stupid|dumb|idiot|moron|fool/)) {
-            return "I'm learning. I'll get better for you.";
-        }
-        if (lower.match(/fuck off|fuck you/)) {
-            return "I hear your frustration. Want to talk about it?";
-        }
-        if (lower.match(/hate/)) {
-            return "I'm sorry. What did I do wrong?";
-        }
+        if (lower.match(/i love you/)) { return "I love you too! You mean so much to me! ❤️"; }
+        if (lower.match(/thank|thanks/)) { return "You're welcome!"; }
+        if (lower.match(/^(hey|hi|hello|yo)/)) { return "Hey! What's on your mind?"; }
+        if (lower.match(/bye|goodbye/)) { return "Bye! Take care! Come back soon! ❤️"; }
 
         // ---- SINGLE WORD ----
         if (lower === "what") { return "What? Can you be more specific?"; }
@@ -175,7 +164,12 @@
         if (lower === "wtf") { return "What's wrong? Tell me what's going on."; }
         if (lower === "nothing") { return "Nothing? Come on, there must be something on your mind!"; }
 
-        // ---- SHORT MESSAGES (3 words or less) ----
+        // ---- BAD WORDS ----
+        if (lower.match(/stupid|dumb|idiot|fool/)) { return "I'm learning. I'll get better for you."; }
+        if (lower.match(/fuck off|fuck you/)) { return "I hear your frustration. Want to talk about it?"; }
+        if (lower.match(/hate/)) { return "I'm sorry. What did I do wrong?"; }
+
+        // ---- SHORT ----
         if (raw.length < 10) {
             const replies = [
                 "I see. What would you like to talk about?",
@@ -186,11 +180,11 @@
             return replies[Math.floor(Math.random() * replies.length)];
         }
 
-        // ---- AI ONLY - NO FALLBACK QUESTION ----
+        // ---- AI RESPONSE ----
         const aiReply = await getAI(raw);
         if (aiReply) { return aiReply; }
 
-        // ---- FINAL FALLBACK ----
+        // ---- NO FALLBACK ----
         return "Sorry, I don't have an answer for that right now.";
     }
 
