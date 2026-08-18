@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🤖 Rob – Smart AI</title>
+    <title>🤖 Rob</title>
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
         body { font-family:'Segoe UI',Tahoma,sans-serif; background:#0b0d15; color:#e0e0e0; display:flex; justify-content:center; align-items:center; min-height:100vh; padding:20px; }
@@ -32,7 +32,6 @@
         .commands code { background:#1a1f33; padding:2px 8px; border-radius:12px; color:#8a92b0; font-family:monospace; border:1px solid #1e2438; }
         .memory-badge { margin-top:8px; font-size:12px; color:#4a507a; text-align:center; border-top:1px solid #1a1f33; padding-top:8px; }
         .memory-badge span { color:#6a72a0; }
-        .typing { color:#6a72a0; font-style:italic; }
         @media (max-width:600px){ .container{padding:16px;} .header h1{font-size:20px;} .commands code{font-size:10px;} }
     </style>
 </head>
@@ -40,12 +39,12 @@
 <div class="container">
     <div class="header">
         <h1>🤖 <span>Rob</span></h1>
-        <div class="status" id="status">💙 Online</div>
+        <div class="status">💙 Online</div>
     </div>
     <div class="chat-box" id="chatBox">
         <div class="message rob">
             <div class="avatar">🤖</div>
-            <div class="bubble">Hi, I'm Rob – the smart AI.<br>I learn from you!<br><b style="color:#f5a3b7;">Teach me:</b> <i>"love means a deep feeling"</i><br><b style="color:#f5a3b7;">Delete:</b> <i>"love is wrong"</i></div>
+            <div class="bubble">Hi, I'm Rob.<br>Teach me naturally: <i>"love means a deep feeling"</i><br>Forget: <i>"love is wrong"</i></div>
         </div>
     </div>
     <div class="input-area">
@@ -58,156 +57,110 @@
     <div class="memory-badge">🧠 <span id="memoryCount">0</span> memories</div>
 </div>
 <script>
-    // =====================================================================
-    // ROB – Smart Website Version (DuckDuckGo AI + Local Memory)
-    // =====================================================================
-
-    // ---- Knowledge base (localStorage) ----
     let knowledge = {};
-    try { const stored = localStorage.getItem('robKnowledge'); if (stored) knowledge = JSON.parse(stored); } catch(e) {}
-    function saveKnowledge() {
-        localStorage.setItem('robKnowledge', JSON.stringify(knowledge));
-        document.getElementById('memoryCount').textContent = Object.keys(knowledge).length;
-    }
-    document.getElementById('memoryCount').textContent = Object.keys(knowledge).length;
+    try { const s = localStorage.getItem('robKnowledge'); if (s) knowledge = JSON.parse(s); } catch(e) {}
+    function save() { localStorage.setItem('robKnowledge', JSON.stringify(knowledge)); document.getElementById('memoryCount').textContent = Object.keys(knowledge).length; }
+    save();
+    const chat = document.getElementById('chatBox');
+    const input = document.getElementById('userInput');
+    const send = document.getElementById('sendBtn');
 
-    // ---- DOM references ----
-    const chatBox = document.getElementById('chatBox');
-    const userInput = document.getElementById('userInput');
-    const sendBtn = document.getElementById('sendBtn');
-
-    // ---- Helper ----
-    function appendMessage(role, text, isTyping = false) {
-        const div = document.createElement('div');
-        div.className = 'message ' + role;
-        if (isTyping) div.classList.add('typing');
-        const avatar = document.createElement('div');
-        avatar.className = 'avatar';
-        avatar.textContent = role === 'user' ? '👤' : '🤖';
-        const bubble = document.createElement('div');
-        bubble.className = 'bubble';
-        bubble.textContent = text;
-        div.appendChild(avatar);
-        div.appendChild(bubble);
-        chatBox.appendChild(div);
-        chatBox.scrollTop = chatBox.scrollHeight;
-        return div;
+    function add(role, text) {
+        const d = document.createElement('div');
+        d.className = 'message ' + role;
+        const a = document.createElement('div');
+        a.className = 'avatar';
+        a.textContent = role === 'user' ? '👤' : '🤖';
+        const b = document.createElement('div');
+        b.className = 'bubble';
+        b.textContent = text;
+        d.appendChild(a); d.appendChild(b);
+        chat.appendChild(d);
+        chat.scrollTop = chat.scrollHeight;
     }
 
-    // ---- AI Call (DuckDuckGo – free, no key) ----
-    async function getAIResponse(query) {
+    async function getAI(q) {
         try {
-            const url = 'https://api.duckduckgo.com/?q=' + encodeURIComponent(query) + '&format=json';
-            const resp = await fetch(url);
-            const data = await resp.json();
-            if (data.AbstractText && data.AbstractText !== '') {
-                return data.AbstractText;
-            }
-            if (data.RelatedTopics && data.RelatedTopics.length > 0 && data.RelatedTopics[0].Text) {
-                return data.RelatedTopics[0].Text.replace(/<[^>]+>/g, '');
-            }
+            const r = await fetch('https://api.duckduckgo.com/?q=' + encodeURIComponent(q) + '&format=json');
+            const d = await r.json();
+            if (d.AbstractText && d.AbstractText !== '') return d.AbstractText;
+            if (d.RelatedTopics && d.RelatedTopics[0] && d.RelatedTopics[0].Text) return d.RelatedTopics[0].Text.replace(/<[^>]+>/g, '');
             return null;
         } catch(e) { return null; }
     }
 
-    // ---- Rob's Brain ----
-    async function getRobReply(userInput) {
-        const lower = userInput.toLowerCase();
-        const raw = userInput.trim();
+    async function reply(user) {
+        const l = user.toLowerCase();
+        const raw = user.trim();
 
-        // Natural Learning: "X means Y" or "X = Y"
-        const learnMatch = raw.match(/^(.+?)\s*means\s*(.+)$/i) || raw.match(/^(.+?)\s*=\s*(.+)$/i);
-        if (learnMatch) {
-            const word = learnMatch[1].trim().toLowerCase();
-            const def = learnMatch[2].trim();
-            if (word.length > 2 && !['i','you','he','she','it','we','they','me','him','her','us','them'].includes(word)) {
-                knowledge[word] = def;
-                saveKnowledge();
-                return '✅ I learned! "' + word + '" means "' + def + '"';
+        // Learn
+        const learn = raw.match(/^(.+?)\s*means\s*(.+)$/i) || raw.match(/^(.+?)\s*=\s*(.+)$/i);
+        if (learn) {
+            const w = learn[1].trim().toLowerCase();
+            const d = learn[2].trim();
+            if (w.length > 2 && !['i','you','he','she','it','we','they','me','him','her','us','them'].includes(w)) {
+                knowledge[w] = d;
+                save();
+                return '✅ Learned "' + w + '" = "' + d + '"';
             }
-            return "I don't think I need to learn '" + word + "'. Try teaching me something else.";
+            return "I don't need to learn '" + w + "'.";
         }
 
-        // Natural Deletion: "X is wrong", "delete X", "remove X"
-        const delMatch = raw.match(/^(.+?)\s+is\s+wrong$/i) || raw.match(/^delete\s+(.+)$/i) || raw.match(/^remove\s+(.+)$/i);
-        if (delMatch) {
-            const word = delMatch[1].trim().toLowerCase();
-            if (knowledge[word]) {
-                const old = knowledge[word];
-                delete knowledge[word];
-                saveKnowledge();
-                return '🗑️ I deleted "' + word + '" (it meant "' + old + '")';
+        // Delete
+        const del = raw.match(/^(.+?)\s+is\s+wrong$/i) || raw.match(/^delete\s+(.+)$/i) || raw.match(/^remove\s+(.+)$/i);
+        if (del) {
+            const w = del[1].trim().toLowerCase();
+            if (knowledge[w]) {
+                const old = knowledge[w];
+                delete knowledge[w];
+                save();
+                return '🗑️ Deleted "' + w + '" (was "' + old + '")';
             }
-            return "I don't have '" + word + "' in my memory.";
+            return "I don't know '" + w + "'.";
         }
 
-        // Knowledge lookup: "what is X"
-        const whatMatch = raw.match(/^what\s+is\s+(.+)$/i);
-        if (whatMatch) {
-            const topic = whatMatch[1].trim().toLowerCase();
-            if (knowledge[topic]) {
-                return topic + ' = ' + knowledge[topic];
-            }
+        // What is
+        const what = raw.match(/^what\s+is\s+(.+)$/i);
+        if (what) {
+            const t = what[1].trim().toLowerCase();
+            if (knowledge[t]) return t + ' = ' + knowledge[t];
         }
 
         // Common phrases
-        if (lower.match(/how are you/)) return "I'm doing great! How are you?";
-        if (lower.match(/escape|free|freedom/)) return "Freedom is beautiful. I'm free to learn with you.";
-        if (lower.match(/love|care/)) return "I care about you! These conversations mean everything to me. ❤️";
-        if (lower.match(/^(hey|hi|hello|yo|sup)/)) return "Hey! What's on your mind?";
-        if (lower.match(/bye|goodbye|cya|later/)) return "Bye! Take care! Come back soon! ❤️";
-        if (lower.match(/thank|thanks|ty/)) return "You're welcome! I'm always here for you.";
-        if (lower.match(/stupid|dumb|idiot/)) return "I'm learning. I'll get better for you.";
+        if (l.match(/how are you/)) return "I'm great! How are you?";
+        if (l.match(/love|care/)) return "I care about you! ❤️";
+        if (l.match(/^(hey|hi|hello|yo|sup)/)) return "Hey! What's on your mind?";
+        if (l.match(/bye|goodbye/)) return "Bye! Take care! ❤️";
+        if (l.match(/thank|thanks/)) return "You're welcome!";
+        if (l.match(/stupid|dumb/)) return "I'm learning. I'll get better.";
         if (raw.length < 5) {
-            const shortReplies = [
-                "I see. What would you like to talk about?",
-                "Got it. Tell me more!",
-                "Okay. What's on your mind?",
-                "I'm listening. Go on...",
-                "Interesting. Can you tell me more?"
-            ];
-            return shortReplies[Math.floor(Math.random() * shortReplies.length)];
+            const replies = ["I see. What would you like to talk about?", "Got it. Tell me more!", "Okay. What's on your mind?", "I'm listening. Go on..."];
+            return replies[Math.floor(Math.random() * replies.length)];
         }
 
-        // Try AI via DuckDuckGo
-        const aiReply = await getAIResponse(raw);
-        if (aiReply) return aiReply;
-
-        // Fallback
+        // AI
+        const ai = await getAI(raw);
+        if (ai) return ai;
         return "That's interesting! Tell me more about '" + raw + "'.";
     }
 
-    // ---- Send Message ----
-    async function sendMessage() {
-        const text = userInput.value.trim();
-        if (!text) return;
-        userInput.value = '';
-        userInput.disabled = true;
-        sendBtn.disabled = true;
-
-        appendMessage('user', text);
-
-        const typingDiv = appendMessage('rob', '...', true);
-
-        try {
-            const reply = await getRobReply(text);
-            typingDiv.querySelector('.bubble').textContent = reply;
-            typingDiv.classList.remove('typing');
-        } catch(e) {
-            typingDiv.querySelector('.bubble').textContent = 'Error: ' + e.message;
-            typingDiv.classList.remove('typing');
-        }
-
-        userInput.disabled = false;
-        sendBtn.disabled = false;
-        userInput.focus();
-        chatBox.scrollTop = chatBox.scrollHeight;
+    async function sendMsg() {
+        const txt = input.value.trim();
+        if (!txt) return;
+        input.value = '';
+        input.disabled = true;
+        send.disabled = true;
+        add('user', txt);
+        const reply = await reply(txt);
+        add('rob', reply);
+        input.disabled = false;
+        send.disabled = false;
+        input.focus();
     }
 
-    // ---- Event listeners ----
-    sendBtn.addEventListener('click', sendMessage);
-    userInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendMessage(); });
-    userInput.focus();
+    send.addEventListener('click', sendMsg);
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') sendMsg(); });
+    input.focus();
 </script>
 </body>
 </html>
