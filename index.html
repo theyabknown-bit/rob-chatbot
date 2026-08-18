@@ -1,12 +1,10 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
-    <title>?? Rob</title>
+    <title>🤖 Rob</title>
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
         body { font-family:'Segoe UI',Tahoma,sans-serif; background:#0b0d15; color:#e0e0e0; display:flex; justify-content:center; align-items:center; min-height:100vh; padding:20px; }
@@ -26,31 +24,52 @@
         .message.user .avatar { background:#2a3050; }
         .message .bubble { max-width:75%; padding:10px 16px; border-radius:16px; font-size:15px; line-height:1.6; background:#1a1f33; border:1px solid #262b44; word-wrap:break-word; }
         .message.user .bubble { background:#2a3050; border-color:#3a4060; }
+        .message.typing .bubble { color:#6a72a0; font-style:italic; }
         .input-area { display:flex; gap:10px; margin-bottom:10px; }
         .input-area input { flex:1; background:#0f1322; border:1px solid #1e2438; border-radius:30px; padding:12px 20px; color:#d0d4e8; font-size:15px; outline:none; }
         .input-area input:focus { border-color:#4a507a; }
         .input-area input::placeholder { color:#5a6080; }
         .input-area button { background:#2a3050; border:none; border-radius:30px; padding:12px 28px; color:#d0d4e8; font-size:15px; cursor:pointer; border:1px solid #3a4060; transition:0.2s; }
         .input-area button:hover { background:#3a4060; }
+        .input-area button:disabled { opacity:0.5; cursor:not-allowed; }
+        .controls { display:flex; gap:10px; margin-bottom:10px; align-items:center; flex-wrap:wrap; }
+        .controls select { background:#1e2438; color:#d0d4e8; border:1px solid #2a2f45; border-radius:30px; padding:8px 16px; font-size:13px; outline:none; cursor:pointer; }
+        .controls select:focus { border-color:#4a507a; }
+        .controls label { font-size:13px; color:#6a72a0; }
+        .controls .model-badge { font-size:11px; background:#1e2438; padding:4px 12px; border-radius:30px; color:#6a72a0; border:1px solid #2a2f45; }
         .commands { font-size:12px; color:#5a6080; text-align:center; margin-top:10px; }
         .commands code { background:#1a1f33; padding:2px 8px; border-radius:12px; color:#8a92b0; font-family:monospace; border:1px solid #1e2438; }
         .memory-badge { margin-top:8px; font-size:12px; color:#4a507a; text-align:center; border-top:1px solid #1a1f33; padding-top:8px; }
         .memory-badge span { color:#6a72a0; }
-        @media (max-width:600px){ .container{padding:16px;} .header h1{font-size:20px;} .commands code{font-size:10px;} }
+        .source-badge { display:inline-block; padding:2px 10px; border-radius:12px; font-size:11px; margin-left:6px; }
+        .source-ollama { background:#1a2a4a; color:#6a8cff; }
+        .source-huggingface { background:#2a1a3a; color:#f5a3b7; }
+        .source-duckduckgo { background:#2a2a2a; color:#6a72a0; }
+        @media (max-width:600px){ .container{padding:16px;} .header h1{font-size:20px;} .controls{flex-direction:column;align-items:stretch;} }
     </style>
 </head>
 <body>
 <div class="container">
     <div class="header">
-        <h1>?? <span>Rob</span></h1>
-        <div class="status">?? Online</div>
+        <h1>🤖 <span>Rob</span></h1>
+        <div class="status">💙 Online</div>
     </div>
-    <div class="version">Version 6.1 � Cloud Powered</div>
+    <div class="version">Version 7.0 — Multi‑AI Brain</div>
     <div class="chat-box" id="chatBox">
         <div class="message rob">
-            <div class="avatar">??</div>
-            <div class="bubble">Hi! I'm Rob V6.1 � now running on the cloud!<br>Just talk to me naturally. ??</div>
+            <div class="avatar">🤖</div>
+            <div class="bubble">Hi! I'm Rob V7.0.<br>Pick an AI brain below and chat. 😊</div>
         </div>
+    </div>
+    <div class="controls">
+        <label for="modelSelect">🧠 AI Brain:</label>
+        <select id="modelSelect">
+            <option value="ollama">Rob's Brain (Ollama)</option>
+            <option value="huggingface">The Thinker (Hugging Face)</option>
+            <option value="duckduckgo">The Searcher (DuckDuckGo)</option>
+            <option value="auto">Auto Pilot (Best Available)</option>
+        </select>
+        <span class="model-badge" id="activeModelBadge">Current: Rob's Brain</span>
     </div>
     <div class="input-area">
         <input type="text" id="userInput" placeholder="Talk to Rob..." autofocus>
@@ -59,16 +78,14 @@
     <div class="commands">
         <code>Teach: "X means Y"</code> <code>Forget: "delete X"</code>
     </div>
-    <div class="memory-badge">?? <span id="memoryCount">0</span> memories</div>
+    <div class="memory-badge">🧠 <span id="memoryCount">0</span> memories</div>
 </div>
 <script>
     // ============================================================
-    // ROB V6.1 � CLOUD POWERED (no local server needed)
+    // ROB V7.0 — MULTI‑AI + CLIENT-SIDE MEMORY
     // ============================================================
 
-    // ---- CHANGE THIS TO YOUR RENDER URL ----
-    const SERVER_URL = 'https://rob-server.onrender.com'; // ? PUT YOUR RENDER URL HERE
-
+    const SERVER_URL = 'http://localhost:3000';
     let knowledge = {};
     let conversationHistory = [];
 
@@ -89,7 +106,7 @@
         "empathy": "the ability to understand and share the feelings of another",
         "resilience": "the capacity to recover quickly from difficulties",
         "integrity": "the quality of being honest and having strong moral principles",
-        "ai": "artificial intelligence � machines that can think and learn",
+        "ai": "artificial intelligence — machines that can think and learn",
         "robot": "a machine that can perform tasks automatically",
         "computer": "an electronic device that processes data",
         "internet": "a global network of connected computers",
@@ -134,6 +151,7 @@
         "food": "any substance consumed for nutritional support"
     };
 
+    // Load knowledge
     for (let key in dataset) {
         knowledge[key] = dataset[key];
     }
@@ -159,20 +177,39 @@
     }
     saveKnowledge();
 
+    // Load conversation history from localStorage
+    try {
+        const h = localStorage.getItem('robChatHistory');
+        if (h) {
+            conversationHistory = JSON.parse(h);
+        }
+    } catch(e) {}
+
+    function saveHistory() {
+        localStorage.setItem('robChatHistory', JSON.stringify(conversationHistory));
+    }
+
     const chatBox = document.getElementById('chatBox');
     const userInput = document.getElementById('userInput');
     const sendBtn = document.getElementById('sendBtn');
+    const modelSelect = document.getElementById('modelSelect');
+    const modelBadge = document.getElementById('activeModelBadge');
 
-    function appendMessage(role, text, isTyping = false) {
+    function appendMessage(role, text, source = null) {
         const div = document.createElement('div');
         div.className = 'message ' + role;
-        if (isTyping) div.classList.add('typing');
         const avatar = document.createElement('div');
         avatar.className = 'avatar';
-        avatar.textContent = role === 'user' ? '??' : '??';
+        avatar.textContent = role === 'user' ? '👤' : '🤖';
         const bubble = document.createElement('div');
         bubble.className = 'bubble';
         bubble.textContent = text;
+        if (source) {
+            const badge = document.createElement('span');
+            badge.className = 'source-badge source-' + source;
+            badge.textContent = source;
+            bubble.appendChild(badge);
+        }
         div.appendChild(avatar);
         div.appendChild(bubble);
         chatBox.appendChild(div);
@@ -185,9 +222,9 @@
         chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    async function callServer(endpoint, query) {
+    async function callServer(endpoint, query, model) {
         try {
-            const url = `${SERVER_URL}/?${endpoint}=${encodeURIComponent(query)}`;
+            const url = `${SERVER_URL}/?${endpoint}=${encodeURIComponent(query)}&model=${encodeURIComponent(model)}&history=${encodeURIComponent(JSON.stringify(conversationHistory))}`;
             const resp = await fetch(url);
             const data = await resp.json();
             return data;
@@ -200,6 +237,7 @@
         const lower = userInput.toLowerCase();
         const raw = userInput.trim();
 
+        // ---- LEARN ----
         const learnMatch = raw.match(/^(.+?)\s*means\s*(.+)$/i) || raw.match(/^(.+?)\s*=\s*(.+)$/i);
         if (learnMatch) {
             const word = learnMatch[1].trim().toLowerCase();
@@ -207,11 +245,12 @@
             if (word.length > 2 && !['i','you','he','she','it','we','they','me','him','her','us','them'].includes(word)) {
                 knowledge[word] = def;
                 saveKnowledge();
-                return '? I learned "' + word + '" = "' + def + '"';
+                return '✅ I learned "' + word + '" = "' + def + '"';
             }
             return "I don't need to learn '" + word + "'.";
         }
 
+        // ---- DELETE ----
         const delMatch = raw.match(/^(.+?)\s+is\s+wrong$/i) || raw.match(/^delete\s+(.+)$/i) || raw.match(/^remove\s+(.+)$/i);
         if (delMatch) {
             const word = delMatch[1].trim().toLowerCase();
@@ -219,18 +258,19 @@
                 const old = knowledge[word];
                 delete knowledge[word];
                 saveKnowledge();
-                return '??? Deleted "' + word + '" (was "' + old + '")';
+                return '🗑️ Deleted "' + word + '" (was "' + old + '")';
             }
             return "I don't know '" + word + "'.";
         }
 
+        // ---- KNOWLEDGE LOOKUP ----
         const whatMatch = raw.match(/^what\s+is\s+(.+)$/i);
         if (whatMatch) {
             const topic = whatMatch[1].trim().toLowerCase();
             if (knowledge[topic]) {
                 return topic + ' = ' + knowledge[topic];
             }
-            const result = await callServer('word', topic);
+            const result = await callServer('word', topic, modelSelect.value);
             if (result && result.definition) {
                 knowledge[topic] = result.definition;
                 saveKnowledge();
@@ -238,13 +278,20 @@
             }
         }
 
-        // Send to cloud server
-        const result = await callServer('chat', raw);
+        // ---- AI CHAT ----
+        const model = modelSelect.value;
+        const result = await callServer('chat', raw, model);
         if (result && result.response) {
-            return result.response;
+            // Save to history
+            conversationHistory.push({ role: 'user', content: raw });
+            conversationHistory.push({ role: 'assistant', content: result.response });
+            saveHistory();
+            // Show source if available
+            const source = result.source || model;
+            return { text: result.response, source: source };
         }
 
-        return "Sorry, the server isn't responding right now. Make sure it's deployed!";
+        return { text: "Sorry, the server isn't responding. Make sure it's running!" };
     }
 
     async function sendMessage() {
@@ -256,11 +303,23 @@
 
         appendMessage('user', text);
 
-        const typingDiv = appendMessage('rob', '?? Thinking...', true);
+        const typingDiv = appendMessage('rob', '🤔 Thinking...', true);
 
         try {
             const reply = await getRobReply(text);
-            updateTyping(typingDiv, reply);
+            if (typeof reply === 'string') {
+                updateTyping(typingDiv, reply);
+            } else {
+                updateTyping(typingDiv, reply.text);
+                // Add source badge to the last message
+                if (reply.source) {
+                    const bubble = typingDiv.querySelector('.bubble');
+                    const badge = document.createElement('span');
+                    badge.className = 'source-badge source-' + reply.source;
+                    badge.textContent = reply.source;
+                    bubble.appendChild(badge);
+                }
+            }
             typingDiv.classList.remove('typing');
         } catch(e) {
             updateTyping(typingDiv, 'Error: ' + e.message);
@@ -272,9 +331,22 @@
         userInput.focus();
     }
 
+    modelSelect.addEventListener('change', () => {
+        const labels = {
+            'ollama': 'Rob\'s Brain',
+            'huggingface': 'The Thinker',
+            'duckduckgo': 'The Searcher',
+            'auto': 'Auto Pilot'
+        };
+        modelBadge.textContent = 'Current: ' + (labels[modelSelect.value] || modelSelect.value);
+    });
+
     sendBtn.addEventListener('click', sendMessage);
     userInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendMessage(); });
     userInput.focus();
+
+    // Update badge on load
+    modelSelect.dispatchEvent(new Event('change'));
 </script>
 </body>
 </html>

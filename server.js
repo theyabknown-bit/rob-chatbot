@@ -3,19 +3,19 @@ const url = require('url');
 const fetch = require('node-fetch');
 
 const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434/api/generate';
-const HF_API = 'https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium';
-
-let conversationHistory = [];
-const MAX_HISTORY = 20;
+const HF_API = 'https://api-inference.huggingface.co/models/facebook/blenderbot-400M-distill';
 
 const server = http.createServer(async (req, res) => {
     const query = url.parse(req.url, true).query;
     const word = query.word;
     const chat = query.chat;
+    const model = query.model || 'ollama';
+    const history = query.history ? JSON.parse(query.history) : [];
     
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Content-Type', 'application/json');
     
+    // ---- Word definitions ----
     if (word) {
         try {
             const ddgUrl = 'https://api.duckduckgo.com/?q=' + encodeURIComponent(word) + '&format=json';
@@ -35,18 +35,16 @@ const server = http.createServer(async (req, res) => {
         }
     }
     
+    // ---- Chat ----
     if (chat) {
-        const userMessage = chat;
-        conversationHistory.push({ role: 'user', content: userMessage });
-        if (conversationHistory.length > MAX_HISTORY) {
-            conversationHistory = conversationHistory.slice(-MAX_HISTORY);
-        }
-        
+        // Build conversation context from history
         let context = '';
-        for (let i = 0; i < conversationHistory.length; i++) {
-            const msg = conversationHistory[i];
+        for (let i = 0; i < history.length; i++) {
+            const msg = history[i];
             context += msg.role + ': ' + msg.content + '\n';
         }
+        // Add the current user message
+        context += 'user: ' + chat + '\n';
         
         const systemPrompt = `You are ROB, an AI assistant.
 
@@ -64,38 +62,39 @@ ROB'S RESPONSE (only your reply):`;
 
         let aiResponse = null;
         let aiSource = null;
+        let modelUsed = model;
 
-        // ---- 1. Try Ollama ----
-        try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 5000);
-            const ollamaRes = await fetch(OLLAMA_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    model: 'phi3:mini',
-                    prompt: systemPrompt,
-                    stream: false,
-                    options: {
-                        temperature: 0.6,
-                        max_tokens: 300,
-                        top_p: 0.9
-                    }
-                }),
-                signal: controller.signal
-            });
-            clearTimeout(timeoutId);
-            const ollamaData = await ollamaRes.json();
-            if (ollamaData && ollamaData.response) {
-                aiResponse = ollamaData.response.trim();
-                aiSource = 'ollama';
-            }
-        } catch(e) {
-            // Ollama failed silently
+        // ---- 1. Ollama ----
+        if (model === 'ollama' || model === 'auto') {
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000);
+                const ollamaRes = await fetch(OLLAMA_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: 'phi3:mini',
+                        prompt: systemPrompt,
+                        stream: false,
+                        options: {
+                            temperature: 0.6,
+                            max_tokens: 300,
+                            top_p: 0.9
+                        }
+                    }),
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+                const ollamaData = await ollamaRes.json();
+                if (ollamaData && ollamaData.response) {
+                    aiResponse = ollamaData.response.trim();
+                    aiSource = 'ollama';
+                }
+            } catch(e) {}
         }
 
-        // ---- 2. Fallback: Hugging Face ----
-        if (!aiResponse) {
+        // ---- 2. Hugging Face ----
+        if (!aiResponse && (model === 'huggingface' || model === 'auto')) {
             try {
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 10000);
@@ -105,7 +104,7 @@ ROB'S RESPONSE (only your reply):`;
                     body: JSON.stringify({
                         inputs: systemPrompt + '\nROB:',
                         parameters: {
-                            max_length: 100,
+                            max_length: 150,
                             temperature: 0.7,
                             top_p: 0.9
                         }
@@ -123,15 +122,13 @@ ROB'S RESPONSE (only your reply):`;
                     aiResponse = reply || "I'm sorry, I couldn't generate a response right now.";
                     aiSource = 'huggingface';
                 }
-            } catch(e) {
-                // Hugging Face failed
-            }
+            } catch(e) {}
         }
 
-        // ---- 3. Final fallback: DuckDuckGo ----
-        if (!aiResponse) {
+        // ---- 3. DuckDuckGo ----
+        if (!aiResponse && (model === 'duckduckgo' || model === 'auto')) {
             try {
-                const ddgUrl = 'https://api.duckduckgo.com/?q=' + encodeURIComponent(userMessage) + '&format=json';
+                const ddgUrl = 'https://api.duckduckgo.com/?q=' + encodeURIComponent(chat) + '&format=json';
                 const ddgRes = await fetch(ddgUrl);
                 const ddgData = await ddgRes.json();
                 if (ddgData.AbstractText && ddgData.AbstractText !== '') {
@@ -141,21 +138,14 @@ ROB'S RESPONSE (only your reply):`;
                     aiResponse = ddgData.RelatedTopics[0].Text.replace(/<[^>]+>/g, '');
                     aiSource = 'duckduckgo';
                 }
-            } catch(e) {
-                // DuckDuckGo failed
-            }
+            } catch(e) {}
         }
 
         if (aiResponse) {
-            conversationHistory.push({ role: 'assistant', content: aiResponse });
-            if (conversationHistory.length > MAX_HISTORY) {
-                conversationHistory = conversationHistory.slice(-MAX_HISTORY);
-            }
-            res.end(JSON.stringify({ response: aiResponse, source: aiSource }));
+            res.end(JSON.stringify({ response: aiResponse, source: aiSource, model: modelUsed }));
             return;
         }
 
-        // If all services failed
         res.end(JSON.stringify({ error: 'All AI services failed' }));
     }
     
@@ -166,5 +156,5 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
     console.log('🤖 ROB Server running on port ' + PORT);
     console.log('📚 Search: /?word=love');
-    console.log('💬 Chat: /?chat=Hello');
+    console.log('💬 Chat: /?chat=Hello&model=ollama');
 });
