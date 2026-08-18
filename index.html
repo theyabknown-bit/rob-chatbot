@@ -12,6 +12,7 @@
         .header h1 { font-size:24px; color:#b7bde0; }
         .header h1 span { color:#6a8cff; }
         .status { font-size:13px; background:#1e2438; padding:6px 14px; border-radius:30px; color:#6a72a0; border:1px solid #2a2f45; }
+        .version { font-size:11px; color:#4a507a; margin-top:4px; text-align:center; }
         .chat-box { background:#0f1322; border-radius:16px; padding:16px; height:400px; overflow-y:auto; margin-bottom:16px; border:1px solid #1e2438; scroll-behavior:smooth; }
         .chat-box::-webkit-scrollbar { width:6px; }
         .chat-box::-webkit-scrollbar-track { background:#0f1322; }
@@ -41,10 +42,11 @@
         <h1>🤖 <span>Rob</span></h1>
         <div class="status">💙 Online</div>
     </div>
+    <div class="version">Version 5.1 — No fallbacks, AI only</div>
     <div class="chat-box" id="chatBox">
         <div class="message rob">
             <div class="avatar">🤖</div>
-            <div class="bubble">Hi, I'm Rob.<br>Teach me: <i>"love means a deep feeling"</i><br>Forget: <i>"love is wrong"</i></div>
+            <div class="bubble">Hi, I'm Rob V5.1.<br>Teach me: <i>"love means a deep feeling"</i><br>Forget: <i>"love is wrong"</i></div>
         </div>
     </div>
     <div class="input-area">
@@ -101,7 +103,7 @@
         const lower = userInput.toLowerCase();
         const raw = userInput.trim();
 
-        // ---- NATURAL LEARNING ----
+        // ---- LEARN ----
         const learnMatch = raw.match(/^(.+?)\s*means\s*(.+)$/i) || raw.match(/^(.+?)\s*=\s*(.+)$/i);
         if (learnMatch) {
             const word = learnMatch[1].trim().toLowerCase();
@@ -114,7 +116,7 @@
             return "I don't need to learn '" + word + "'.";
         }
 
-        // ---- NATURAL DELETION ----
+        // ---- DELETE ----
         const delMatch = raw.match(/^(.+?)\s+is\s+wrong$/i) || raw.match(/^delete\s+(.+)$/i) || raw.match(/^remove\s+(.+)$/i);
         if (delMatch) {
             const word = delMatch[1].trim().toLowerCase();
@@ -152,18 +154,6 @@
         if (lower.match(/^(hey|hi|hello|yo)/)) { return "Hey! What's on your mind?"; }
         if (lower.match(/bye|goodbye/)) { return "Bye! Take care! Come back soon! ❤️"; }
 
-        // ---- SINGLE WORD ----
-        if (lower === "what") { return "What? Can you be more specific?"; }
-        if (lower === "why") { return "Why what? What are you asking about?"; }
-        if (lower === "how") { return "How what? Can you tell me more?"; }
-        if (lower === "bro") { return "What's up?"; }
-        if (lower === "ok" || lower === "okay") { return "Okay! What next?"; }
-        if (lower === "no") { return "No? Okay, what would you like to say?"; }
-        if (lower === "yes") { return "Yes? Tell me more!"; }
-        if (lower === "huh") { return "What do you mean?"; }
-        if (lower === "wtf") { return "What's wrong? Tell me what's going on."; }
-        if (lower === "nothing") { return "Nothing? Come on, there must be something on your mind!"; }
-
         // ---- BAD WORDS ----
         if (lower.match(/stupid|dumb|idiot|fool/)) { return "I'm learning. I'll get better for you."; }
         if (lower.match(/fuck off|fuck you/)) { return "I hear your frustration. Want to talk about it?"; }
@@ -180,11 +170,10 @@
             return replies[Math.floor(Math.random() * replies.length)];
         }
 
-        // ---- AI RESPONSE ----
+        // ---- AI ----
         const aiReply = await getAI(raw);
         if (aiReply) { return aiReply; }
 
-        // ---- NO FALLBACK ----
         return "Sorry, I don't have an answer for that right now.";
     }
 
