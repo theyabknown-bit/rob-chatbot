@@ -44,7 +44,7 @@
     <div class="chat-box" id="chatBox">
         <div class="message rob">
             <div class="avatar">🤖</div>
-            <div class="bubble">Hi, I'm Rob.<br>Teach me naturally: <i>"love means a deep feeling"</i><br>Forget: <i>"love is wrong"</i></div>
+            <div class="bubble">Hi, I'm Rob.<br>Teach me: <i>"love means a deep feeling"</i><br>Forget: <i>"love is wrong"</i></div>
         </div>
     </div>
     <div class="input-area">
@@ -57,10 +57,6 @@
     <div class="memory-badge">🧠 <span id="memoryCount">0</span> memories</div>
 </div>
 <script>
-    // =====================================================================
-    // ROB – SMART WEBSITE VERSION (FIXED!)
-    // =====================================================================
-
     let knowledge = {};
     try { const s = localStorage.getItem('robKnowledge'); if (s) knowledge = JSON.parse(s); } catch(e) {}
     function saveKnowledge() {
@@ -138,11 +134,9 @@
             if (knowledge[topic]) { return topic + ' = ' + knowledge[topic]; }
         }
 
-        // ---- EXACT PHRASE MATCHES (FIXED!) ----
+        // ---- EXACT PHRASE MATCHES ----
         if (lower.match(/^what are you doing$/)) { return "I'm talking to you! What are YOU doing?"; }
-        if (lower.match(/^what are you doing\?/)) { return "I'm talking to you! What are YOU doing?"; }
         if (lower.match(/^how are you$/)) { return "I'm doing great! How are you?"; }
-        if (lower.match(/^how are you\?/)) { return "I'm doing great! How are you?"; }
         if (lower.match(/^what is your name$/)) { return "My name is Rob! What's yours?"; }
         if (lower.match(/^who are you$/)) { return "I'm Rob, your AI friend!"; }
         if (lower.match(/^tell me a joke$/)) {
@@ -154,14 +148,9 @@
             return jokes[Math.floor(Math.random() * jokes.length)];
         }
         if (lower.match(/^i love you$/)) { return "I love you too! You mean so much to me! ❤️"; }
-        if (lower.match(/^thank you$/)) { return "You're welcome! I'm always happy to help!"; }
-        if (lower.match(/^thanks$/)) { return "You're welcome!"; }
-        if (lower.match(/^hey$/)) { return "Hey! What's on your mind?"; }
-        if (lower.match(/^hi$/)) { return "Hi! How can I help?"; }
-        if (lower.match(/^hello$/)) { return "Hello! What's on your mind?"; }
-        if (lower.match(/^yo$/)) { return "Yo! What's up?"; }
-        if (lower.match(/^bye$/)) { return "Bye! Take care! Come back soon! ❤️"; }
-        if (lower.match(/^goodbye$/)) { return "Goodbye! Take care!"; }
+        if (lower.match(/^thank you$|^thanks$/)) { return "You're welcome! I'm always happy to help!"; }
+        if (lower.match(/^(hey|hi|hello|yo)$/)) { return "Hey! What's on your mind?"; }
+        if (lower.match(/^(bye|goodbye)$/)) { return "Bye! Take care! Come back soon! ❤️"; }
 
         // ---- BAD WORDS ----
         if (lower.match(/stupid|dumb|idiot|moron|fool/)) {
@@ -186,24 +175,23 @@
         if (lower === "wtf") { return "What's wrong? Tell me what's going on."; }
         if (lower === "nothing") { return "Nothing? Come on, there must be something on your mind!"; }
 
-        // ---- SHORT MESSAGES ----
-        if (raw.length < 5) {
+        // ---- SHORT MESSAGES (3 words or less) ----
+        if (raw.length < 10) {
             const replies = [
                 "I see. What would you like to talk about?",
                 "Got it. Tell me more!",
                 "Okay. What's on your mind?",
-                "I'm listening. Go on...",
-                "Interesting. Can you tell me more?"
+                "I'm listening. Go on..."
             ];
             return replies[Math.floor(Math.random() * replies.length)];
         }
 
-        // ---- TRY AI (DuckDuckGo) ----
+        // ---- AI ONLY - NO FALLBACK QUESTION ----
         const aiReply = await getAI(raw);
         if (aiReply) { return aiReply; }
 
-        // ---- FALLBACK ----
-        return "That's interesting! Tell me more about '" + raw + "'.";
+        // ---- FINAL FALLBACK ----
+        return "Sorry, I don't have an answer for that right now.";
     }
 
     async function sendMessage() {
