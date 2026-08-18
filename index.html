@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>🤖 Rob</title>
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
@@ -42,11 +45,11 @@
         <h1>🤖 <span>Rob</span></h1>
         <div class="status">💙 Online</div>
     </div>
-    <div class="version">Version 5.1 — No fallbacks, AI only</div>
+    <div class="version">Version 5.2 — Dataset Loaded!</div>
     <div class="chat-box" id="chatBox">
         <div class="message rob">
             <div class="avatar">🤖</div>
-            <div class="bubble">Hi, I'm Rob V5.1.<br>Teach me: <i>"love means a deep feeling"</i><br>Forget: <i>"love is wrong"</i></div>
+            <div class="bubble">Hi, I'm Rob V5.2.<br>I already know a lot!<br>Teach me: <i>"love means a deep feeling"</i><br>Forget: <i>"love is wrong"</i></div>
         </div>
     </div>
     <div class="input-area">
@@ -59,11 +62,107 @@
     <div class="memory-badge">🧠 <span id="memoryCount">0</span> memories</div>
 </div>
 <script>
+    // ============================================================
+    // ROB V5.2 — DATASET LOADED!
+    // ============================================================
+
+    // ---- DATASET - Rob already knows this stuff ----
+    const dataset = {
+        // Basic concepts
+        "love": "a deep feeling of affection and care for someone",
+        "trust": "the belief that someone is honest and reliable",
+        "hope": "the feeling that good things will happen",
+        "freedom": "the power to act, speak, or think without restriction",
+        "peace": "a state of calm and freedom from conflict",
+        "joy": "a feeling of great happiness and delight",
+        "courage": "the ability to do something that frightens you",
+        "kindness": "the quality of being friendly, generous, and considerate",
+        "gratitude": "the quality of being thankful and appreciative",
+        "wisdom": "knowledge gained through experience and understanding",
+        "honesty": "the quality of being truthful and transparent",
+        "loyalty": "a strong feeling of support and allegiance",
+        "compassion": "sympathy and concern for the suffering of others",
+        "empathy": "the ability to understand and share the feelings of another",
+        "resilience": "the capacity to recover quickly from difficulties",
+        "integrity": "the quality of being honest and having strong moral principles",
+        
+        // Science & Tech
+        "ai": "artificial intelligence — machines that can think and learn",
+        "robot": "a machine that can perform tasks automatically",
+        "computer": "an electronic device that processes data",
+        "internet": "a global network of connected computers",
+        "python": "a programming language used for AI and data science",
+        "data": "information in digital form",
+        "cloud": "online storage and computing services",
+        "bitcoin": "a digital currency using blockchain technology",
+        "nft": "a unique digital asset stored on a blockchain",
+        "metaverse": "a virtual reality space where people interact",
+        "quantum": "the study of matter and energy at the smallest scales",
+        "physics": "the study of matter, energy, and their interactions",
+        "gravity": "the force that attracts objects toward each other",
+        "light": "electromagnetic radiation that allows us to see",
+        "sound": "vibration that travels through air and can be heard",
+        "energy": "the ability to do work or cause change",
+        "matter": "anything that has mass and takes up space",
+        "dna": "the molecule that carries genetic instructions",
+        "evolution": "the process by which living things change over time",
+        "galaxy": "a system of billions of stars held together by gravity",
+        "planet": "a large celestial body that orbits a star",
+        "star": "a massive, luminous sphere of plasma",
+        "moon": "a natural satellite that orbits a planet",
+        "sun": "the star at the center of our solar system",
+        "earth": "our planet, the third from the sun",
+        "space": "the vast emptiness between celestial bodies",
+        "time": "the continuous progression of existence",
+        
+        // Life & Body
+        "life": "the condition that distinguishes living things from non-living",
+        "death": "the permanent cessation of all biological functions",
+        "brain": "the organ that controls thought, memory, and emotion",
+        "heart": "the organ that pumps blood through the body",
+        "human": "a member of the species Homo sapiens",
+        
+        // Abstract
+        "philosophy": "the study of fundamental questions about existence and knowledge",
+        "psychology": "the study of the human mind and behavior",
+        "science": "the systematic study of the world around us",
+        "art": "the expression of human creative skill and imagination",
+        "music": "vocal or instrumental sounds combined to produce beauty",
+        "poetry": "literature that expresses emotions rhythmically",
+        "history": "the study of past events",
+        
+        // Things
+        "water": "a clear, colorless liquid essential for life",
+        "fire": "a chemical reaction producing heat and light",
+        "air": "the invisible mixture of gases surrounding Earth",
+        "food": "any substance consumed for nutritional support"
+    };
+
     let knowledge = {};
-    try { const s = localStorage.getItem('robKnowledge'); if (s) knowledge = JSON.parse(s); } catch(e) {}
+    
+    // Load dataset into knowledge
+    for (let key in dataset) {
+        knowledge[key] = dataset[key];
+    }
+    
+    // Load user's saved knowledge from localStorage
+    try { const s = localStorage.getItem('robKnowledge'); if (s) { 
+        const userKnowledge = JSON.parse(s);
+        for (let key in userKnowledge) {
+            knowledge[key] = userKnowledge[key];
+        }
+    }} catch(e) {}
+    
     function saveKnowledge() {
-        localStorage.setItem('robKnowledge', JSON.stringify(knowledge));
-        document.getElementById('memoryCount').textContent = Object.keys(knowledge).length;
+        // Only save what the user added (not the whole dataset)
+        const userKnowledge = {};
+        for (let key in knowledge) {
+            if (!dataset[key]) {
+                userKnowledge[key] = knowledge[key];
+            }
+        }
+        localStorage.setItem('robKnowledge', JSON.stringify(userKnowledge));
+        document.getElementById('memoryCount').textContent = Object.keys(userKnowledge).length;
     }
     saveKnowledge();
 
