@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>🤖 Rob</title>
+    <title>?? Rob</title>
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
         body { font-family:'Segoe UI',Tahoma,sans-serif; background:#0b0d15; color:#e0e0e0; display:flex; justify-content:center; align-items:center; min-height:100vh; padding:20px; }
@@ -42,14 +42,14 @@
 <body>
 <div class="container">
     <div class="header">
-        <h1>🤖 <span>Rob</span></h1>
-        <div class="status">💙 Online</div>
+        <h1>?? <span>Rob</span></h1>
+        <div class="status">?? Online</div>
     </div>
-    <div class="version">Version 6.1 — Cloud Powered</div>
+    <div class="version">Version 6.1 � Cloud Powered</div>
     <div class="chat-box" id="chatBox">
         <div class="message rob">
-            <div class="avatar">🤖</div>
-            <div class="bubble">Hi! I'm Rob V6.1 — now running on the cloud!<br>Just talk to me naturally. 😊</div>
+            <div class="avatar">??</div>
+            <div class="bubble">Hi! I'm Rob V6.1 � now running on the cloud!<br>Just talk to me naturally. ??</div>
         </div>
     </div>
     <div class="input-area">
@@ -59,15 +59,15 @@
     <div class="commands">
         <code>Teach: "X means Y"</code> <code>Forget: "delete X"</code>
     </div>
-    <div class="memory-badge">🧠 <span id="memoryCount">0</span> memories</div>
+    <div class="memory-badge">?? <span id="memoryCount">0</span> memories</div>
 </div>
 <script>
     // ============================================================
-    // ROB V6.1 — CLOUD POWERED (no local server needed)
+    // ROB V6.1 � CLOUD POWERED (no local server needed)
     // ============================================================
 
     // ---- CHANGE THIS TO YOUR RENDER URL ----
-    const SERVER_URL = 'https://rob-server.onrender.com'; // ← PUT YOUR RENDER URL HERE
+    const SERVER_URL = 'https://rob-server.onrender.com'; // ? PUT YOUR RENDER URL HERE
 
     let knowledge = {};
     let conversationHistory = [];
@@ -89,7 +89,7 @@
         "empathy": "the ability to understand and share the feelings of another",
         "resilience": "the capacity to recover quickly from difficulties",
         "integrity": "the quality of being honest and having strong moral principles",
-        "ai": "artificial intelligence — machines that can think and learn",
+        "ai": "artificial intelligence � machines that can think and learn",
         "robot": "a machine that can perform tasks automatically",
         "computer": "an electronic device that processes data",
         "internet": "a global network of connected computers",
@@ -169,7 +169,7 @@
         if (isTyping) div.classList.add('typing');
         const avatar = document.createElement('div');
         avatar.className = 'avatar';
-        avatar.textContent = role === 'user' ? '👤' : '🤖';
+        avatar.textContent = role === 'user' ? '??' : '??';
         const bubble = document.createElement('div');
         bubble.className = 'bubble';
         bubble.textContent = text;
@@ -207,7 +207,7 @@
             if (word.length > 2 && !['i','you','he','she','it','we','they','me','him','her','us','them'].includes(word)) {
                 knowledge[word] = def;
                 saveKnowledge();
-                return '✅ I learned "' + word + '" = "' + def + '"';
+                return '? I learned "' + word + '" = "' + def + '"';
             }
             return "I don't need to learn '" + word + "'.";
         }
@@ -219,7 +219,7 @@
                 const old = knowledge[word];
                 delete knowledge[word];
                 saveKnowledge();
-                return '🗑️ Deleted "' + word + '" (was "' + old + '")';
+                return '??? Deleted "' + word + '" (was "' + old + '")';
             }
             return "I don't know '" + word + "'.";
         }
@@ -256,7 +256,7 @@
 
         appendMessage('user', text);
 
-        const typingDiv = appendMessage('rob', '🤔 Thinking...', true);
+        const typingDiv = appendMessage('rob', '?? Thinking...', true);
 
         try {
             const reply = await getRobReply(text);
