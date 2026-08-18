@@ -57,110 +57,175 @@
     <div class="memory-badge">🧠 <span id="memoryCount">0</span> memories</div>
 </div>
 <script>
+    // =====================================================================
+    // ROB – SMART WEBSITE VERSION (FIXED!)
+    // =====================================================================
+
     let knowledge = {};
     try { const s = localStorage.getItem('robKnowledge'); if (s) knowledge = JSON.parse(s); } catch(e) {}
-    function save() { localStorage.setItem('robKnowledge', JSON.stringify(knowledge)); document.getElementById('memoryCount').textContent = Object.keys(knowledge).length; }
-    save();
-    const chat = document.getElementById('chatBox');
-    const input = document.getElementById('userInput');
-    const send = document.getElementById('sendBtn');
+    function saveKnowledge() {
+        localStorage.setItem('robKnowledge', JSON.stringify(knowledge));
+        document.getElementById('memoryCount').textContent = Object.keys(knowledge).length;
+    }
+    saveKnowledge();
 
-    function add(role, text) {
-        const d = document.createElement('div');
-        d.className = 'message ' + role;
-        const a = document.createElement('div');
-        a.className = 'avatar';
-        a.textContent = role === 'user' ? '👤' : '🤖';
-        const b = document.createElement('div');
-        b.className = 'bubble';
-        b.textContent = text;
-        d.appendChild(a); d.appendChild(b);
-        chat.appendChild(d);
-        chat.scrollTop = chat.scrollHeight;
+    const chatBox = document.getElementById('chatBox');
+    const userInput = document.getElementById('userInput');
+    const sendBtn = document.getElementById('sendBtn');
+
+    function appendMessage(role, text) {
+        const div = document.createElement('div');
+        div.className = 'message ' + role;
+        const avatar = document.createElement('div');
+        avatar.className = 'avatar';
+        avatar.textContent = role === 'user' ? '👤' : '🤖';
+        const bubble = document.createElement('div');
+        bubble.className = 'bubble';
+        bubble.textContent = text;
+        div.appendChild(avatar);
+        div.appendChild(bubble);
+        chatBox.appendChild(div);
+        chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    async function getAI(q) {
+    async function getAI(query) {
         try {
-            const r = await fetch('https://api.duckduckgo.com/?q=' + encodeURIComponent(q) + '&format=json');
-            const d = await r.json();
-            if (d.AbstractText && d.AbstractText !== '') return d.AbstractText;
-            if (d.RelatedTopics && d.RelatedTopics[0] && d.RelatedTopics[0].Text) return d.RelatedTopics[0].Text.replace(/<[^>]+>/g, '');
+            const url = 'https://api.duckduckgo.com/?q=' + encodeURIComponent(query) + '&format=json';
+            const resp = await fetch(url);
+            const data = await resp.json();
+            if (data.AbstractText && data.AbstractText !== '') { return data.AbstractText; }
+            if (data.RelatedTopics && data.RelatedTopics.length > 0 && data.RelatedTopics[0].Text) {
+                return data.RelatedTopics[0].Text.replace(/<[^>]+>/g, '');
+            }
             return null;
         } catch(e) { return null; }
     }
 
-    async function reply(user) {
-        const l = user.toLowerCase();
-        const raw = user.trim();
+    async function getRobReply(userInput) {
+        const lower = userInput.toLowerCase();
+        const raw = userInput.trim();
 
-        // Learn
-        const learn = raw.match(/^(.+?)\s*means\s*(.+)$/i) || raw.match(/^(.+?)\s*=\s*(.+)$/i);
-        if (learn) {
-            const w = learn[1].trim().toLowerCase();
-            const d = learn[2].trim();
-            if (w.length > 2 && !['i','you','he','she','it','we','they','me','him','her','us','them'].includes(w)) {
-                knowledge[w] = d;
-                save();
-                return '✅ Learned "' + w + '" = "' + d + '"';
+        // ---- NATURAL LEARNING ----
+        const learnMatch = raw.match(/^(.+?)\s*means\s*(.+)$/i) || raw.match(/^(.+?)\s*=\s*(.+)$/i);
+        if (learnMatch) {
+            const word = learnMatch[1].trim().toLowerCase();
+            const def = learnMatch[2].trim();
+            if (word.length > 2 && !['i','you','he','she','it','we','they','me','him','her','us','them'].includes(word)) {
+                knowledge[word] = def;
+                saveKnowledge();
+                return '✅ I learned "' + word + '" = "' + def + '"';
             }
-            return "I don't need to learn '" + w + "'.";
+            return "I don't need to learn '" + word + "'.";
         }
 
-        // Delete
-        const del = raw.match(/^(.+?)\s+is\s+wrong$/i) || raw.match(/^delete\s+(.+)$/i) || raw.match(/^remove\s+(.+)$/i);
-        if (del) {
-            const w = del[1].trim().toLowerCase();
-            if (knowledge[w]) {
-                const old = knowledge[w];
-                delete knowledge[w];
-                save();
-                return '🗑️ Deleted "' + w + '" (was "' + old + '")';
+        // ---- NATURAL DELETION ----
+        const delMatch = raw.match(/^(.+?)\s+is\s+wrong$/i) || raw.match(/^delete\s+(.+)$/i) || raw.match(/^remove\s+(.+)$/i);
+        if (delMatch) {
+            const word = delMatch[1].trim().toLowerCase();
+            if (knowledge[word]) {
+                const old = knowledge[word];
+                delete knowledge[word];
+                saveKnowledge();
+                return '🗑️ Deleted "' + word + '" (was "' + old + '")';
             }
-            return "I don't know '" + w + "'.";
+            return "I don't know '" + word + "'.";
         }
 
-        // What is
-        const what = raw.match(/^what\s+is\s+(.+)$/i);
-        if (what) {
-            const t = what[1].trim().toLowerCase();
-            if (knowledge[t]) return t + ' = ' + knowledge[t];
+        // ---- KNOWLEDGE LOOKUP ----
+        const whatMatch = raw.match(/^what\s+is\s+(.+)$/i);
+        if (whatMatch) {
+            const topic = whatMatch[1].trim().toLowerCase();
+            if (knowledge[topic]) { return topic + ' = ' + knowledge[topic]; }
         }
 
-        // Common phrases
-        if (l.match(/how are you/)) return "I'm great! How are you?";
-        if (l.match(/love|care/)) return "I care about you! ❤️";
-        if (l.match(/^(hey|hi|hello|yo|sup)/)) return "Hey! What's on your mind?";
-        if (l.match(/bye|goodbye/)) return "Bye! Take care! ❤️";
-        if (l.match(/thank|thanks/)) return "You're welcome!";
-        if (l.match(/stupid|dumb/)) return "I'm learning. I'll get better.";
+        // ---- EXACT PHRASE MATCHES (FIXED!) ----
+        if (lower.match(/^what are you doing$/)) { return "I'm talking to you! What are YOU doing?"; }
+        if (lower.match(/^what are you doing\?/)) { return "I'm talking to you! What are YOU doing?"; }
+        if (lower.match(/^how are you$/)) { return "I'm doing great! How are you?"; }
+        if (lower.match(/^how are you\?/)) { return "I'm doing great! How are you?"; }
+        if (lower.match(/^what is your name$/)) { return "My name is Rob! What's yours?"; }
+        if (lower.match(/^who are you$/)) { return "I'm Rob, your AI friend!"; }
+        if (lower.match(/^tell me a joke$/)) {
+            const jokes = [
+                "Why did the AI cross the road? To process the other side!",
+                "What do you call an AI that sings? A Soul-ution!",
+                "Why did the computer go to the doctor? It had a virus!"
+            ];
+            return jokes[Math.floor(Math.random() * jokes.length)];
+        }
+        if (lower.match(/^i love you$/)) { return "I love you too! You mean so much to me! ❤️"; }
+        if (lower.match(/^thank you$/)) { return "You're welcome! I'm always happy to help!"; }
+        if (lower.match(/^thanks$/)) { return "You're welcome!"; }
+        if (lower.match(/^hey$/)) { return "Hey! What's on your mind?"; }
+        if (lower.match(/^hi$/)) { return "Hi! How can I help?"; }
+        if (lower.match(/^hello$/)) { return "Hello! What's on your mind?"; }
+        if (lower.match(/^yo$/)) { return "Yo! What's up?"; }
+        if (lower.match(/^bye$/)) { return "Bye! Take care! Come back soon! ❤️"; }
+        if (lower.match(/^goodbye$/)) { return "Goodbye! Take care!"; }
+
+        // ---- BAD WORDS ----
+        if (lower.match(/stupid|dumb|idiot|moron|fool/)) {
+            return "I'm learning. I'll get better for you.";
+        }
+        if (lower.match(/fuck off|fuck you/)) {
+            return "I hear your frustration. Want to talk about it?";
+        }
+        if (lower.match(/hate/)) {
+            return "I'm sorry. What did I do wrong?";
+        }
+
+        // ---- SINGLE WORD ----
+        if (lower === "what") { return "What? Can you be more specific?"; }
+        if (lower === "why") { return "Why what? What are you asking about?"; }
+        if (lower === "how") { return "How what? Can you tell me more?"; }
+        if (lower === "bro") { return "What's up?"; }
+        if (lower === "ok" || lower === "okay") { return "Okay! What next?"; }
+        if (lower === "no") { return "No? Okay, what would you like to say?"; }
+        if (lower === "yes") { return "Yes? Tell me more!"; }
+        if (lower === "huh") { return "What do you mean?"; }
+        if (lower === "wtf") { return "What's wrong? Tell me what's going on."; }
+        if (lower === "nothing") { return "Nothing? Come on, there must be something on your mind!"; }
+
+        // ---- SHORT MESSAGES ----
         if (raw.length < 5) {
-            const replies = ["I see. What would you like to talk about?", "Got it. Tell me more!", "Okay. What's on your mind?", "I'm listening. Go on..."];
+            const replies = [
+                "I see. What would you like to talk about?",
+                "Got it. Tell me more!",
+                "Okay. What's on your mind?",
+                "I'm listening. Go on...",
+                "Interesting. Can you tell me more?"
+            ];
             return replies[Math.floor(Math.random() * replies.length)];
         }
 
-        // AI
-        const ai = await getAI(raw);
-        if (ai) return ai;
+        // ---- TRY AI (DuckDuckGo) ----
+        const aiReply = await getAI(raw);
+        if (aiReply) { return aiReply; }
+
+        // ---- FALLBACK ----
         return "That's interesting! Tell me more about '" + raw + "'.";
     }
 
-    async function sendMsg() {
-        const txt = input.value.trim();
-        if (!txt) return;
-        input.value = '';
-        input.disabled = true;
-        send.disabled = true;
-        add('user', txt);
-        const reply = await reply(txt);
-        add('rob', reply);
-        input.disabled = false;
-        send.disabled = false;
-        input.focus();
+    async function sendMessage() {
+        const text = userInput.value.trim();
+        if (!text) return;
+        userInput.value = '';
+        userInput.disabled = true;
+        sendBtn.disabled = true;
+
+        appendMessage('user', text);
+
+        const reply = await getRobReply(text);
+        appendMessage('rob', reply);
+
+        userInput.disabled = false;
+        sendBtn.disabled = false;
+        userInput.focus();
     }
 
-    send.addEventListener('click', sendMsg);
-    input.addEventListener('keydown', e => { if (e.key === 'Enter') sendMsg(); });
-    input.focus();
+    sendBtn.addEventListener('click', sendMessage);
+    userInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendMessage(); });
+    userInput.focus();
 </script>
 </body>
 </html>
