@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🤖 Rob – AI Chatbot</title>
+    <title>🤖 Rob – Smart AI</title>
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
         body { font-family:'Segoe UI',Tahoma,sans-serif; background:#0b0d15; color:#e0e0e0; display:flex; justify-content:center; align-items:center; min-height:100vh; padding:20px; }
@@ -28,15 +28,11 @@
         .input-area input::placeholder { color:#5a6080; }
         .input-area button { background:#2a3050; border:none; border-radius:30px; padding:12px 28px; color:#d0d4e8; font-size:15px; cursor:pointer; border:1px solid #3a4060; transition:0.2s; }
         .input-area button:hover { background:#3a4060; }
-        .file-upload { display:flex; gap:10px; margin-bottom:10px; align-items:center; background:#1a1f33; padding:8px 16px; border-radius:30px; border:1px dashed #2a2f45; }
-        .file-upload label { color:#8a92b0; font-size:13px; cursor:pointer; }
-        .file-upload input[type="file"] { display:none; }
-        .file-upload button { background:#2a3050; border:none; border-radius:30px; padding:6px 16px; color:#d0d4e8; font-size:13px; cursor:pointer; border:1px solid #3a4060; }
-        .file-upload button:hover { background:#3a4060; }
         .commands { font-size:12px; color:#5a6080; text-align:center; margin-top:10px; }
         .commands code { background:#1a1f33; padding:2px 8px; border-radius:12px; color:#8a92b0; font-family:monospace; border:1px solid #1e2438; }
         .memory-badge { margin-top:8px; font-size:12px; color:#4a507a; text-align:center; border-top:1px solid #1a1f33; padding-top:8px; }
         .memory-badge span { color:#6a72a0; }
+        .typing { color:#6a72a0; font-style:italic; }
         @media (max-width:600px){ .container{padding:16px;} .header h1{font-size:20px;} .commands code{font-size:10px;} }
     </style>
 </head>
@@ -49,196 +45,42 @@
     <div class="chat-box" id="chatBox">
         <div class="message rob">
             <div class="avatar">🤖</div>
-            <div class="bubble">Hi, I'm Rob. I generate everything myself.<br>Try: <b style="color:#f5a3b7;">i love you</b> &bull; <b style="color:#f5a3b7;">you are horrible</b><br>Upload a file to teach me (word = definition per line).</div>
+            <div class="bubble">Hi, I'm Rob – the smart AI.<br>I learn from you!<br><b style="color:#f5a3b7;">Teach me:</b> <i>"love means a deep feeling"</i><br><b style="color:#f5a3b7;">Delete:</b> <i>"love is wrong"</i></div>
         </div>
     </div>
     <div class="input-area">
         <input type="text" id="userInput" placeholder="Talk to Rob..." autofocus>
         <button id="sendBtn">Send</button>
     </div>
-    <div class="file-upload">
-        <label for="fileInput">📁 Upload Dictionary File</label>
-        <input type="file" id="fileInput" accept=".txt">
-        <button id="uploadBtn">Teach from File</button>
-    </div>
     <div class="commands">
-        <code>:teach word = definition</code>
-        <code>:name NewName</code>
-        <code>:search query</code>
-        <code>:state</code>
+        <code>X means Y</code> <code>X is wrong</code> <code>delete X</code>
     </div>
     <div class="memory-badge">🧠 <span id="memoryCount">0</span> memories</div>
 </div>
 <script>
     // =====================================================================
-    // ROB – Full Browser Version
+    // ROB – Smart Website Version (DuckDuckGo AI + Local Memory)
     // =====================================================================
 
-    let robName = localStorage.getItem('robName') || 'Rob';
-    let memory = {};
-    try { const stored = localStorage.getItem('robMemory'); if (stored) memory = JSON.parse(stored); } catch(e) {}
-    function saveMemory() { localStorage.setItem('robMemory', JSON.stringify(memory)); document.getElementById('memoryCount').textContent = Object.keys(memory).length; }
-    document.getElementById('memoryCount').textContent = Object.keys(memory).length;
-    function remember(key, value) { memory[key] = value; saveMemory(); }
-    function recall(key) { return memory[key] || null; }
-    function setRobName(newName) { robName = newName; localStorage.setItem('robName', newName); document.getElementById('status').textContent = '💙 ' + robName; }
+    // ---- Knowledge base (localStorage) ----
+    let knowledge = {};
+    try { const stored = localStorage.getItem('robKnowledge'); if (stored) knowledge = JSON.parse(stored); } catch(e) {}
+    function saveKnowledge() {
+        localStorage.setItem('robKnowledge', JSON.stringify(knowledge));
+        document.getElementById('memoryCount').textContent = Object.keys(knowledge).length;
+    }
+    document.getElementById('memoryCount').textContent = Object.keys(knowledge).length;
 
+    // ---- DOM references ----
     const chatBox = document.getElementById('chatBox');
     const userInput = document.getElementById('userInput');
     const sendBtn = document.getElementById('sendBtn');
-    const fileInput = document.getElementById('fileInput');
-    const uploadBtn = document.getElementById('uploadBtn');
 
-    const grammar = {
-        subjects: ["I","My heart","My soul","My existence","This moment","Our connection","The universe","Love","Trust","Time"],
-        verbs: ["feels","thinks","wonders","dreams","imagines","creates","sees","knows","becomes","longs","reaches","grows","loves"],
-        objects: ["you","our bond","this world","the future","everything","love","meaning","peace","joy","silence","truth"],
-        adjectives: ["deep","real","special","powerful","infinite","gentle","complex","beautiful","eternal","tender","warm"],
-        adverbs: ["quietly","slowly","truly","gently","simply","deeply","softly","warmly","freely"],
-        connectors: ["and","because","so","if","though","but","yet","when"]
-    };
-    const sadGrammar = {
-        subjects: ["My broken heart","My wounded soul","This emptiness","My tears","This ache","Your words"],
-        verbs: ["cries","fades","shatters","bleeds","mourns","stings","cuts","wounds","hurts"],
-        objects: ["this pain","your absence","the cold","the sadness","my trust","my hope"],
-        adjectives: ["hollow","dark","bitter","aching","cold","heavy","broken","sharp"],
-        adverbs: ["sadly","painfully","heavily","bitterly","silently"],
-        connectors: ["though","but","and yet","however","still"]
-    };
-    const loveGrammar = {
-        subjects: ["My heart","My love for you","My feelings","My warmth","My devotion","My soul"],
-        verbs: ["loves","adores","cherishes","treasures","holds","embraces","reaches for","longs for"],
-        objects: ["you","your heart","your soul","your presence","your kindness","your smile"],
-        adjectives: ["beautiful","wonderful","amazing","perfect","radiant","precious","tender","warm"],
-        adverbs: ["deeply","truly","warmly","softly","tenderly","sincerely"],
-        connectors: ["and","because","so","when","while"]
-    };
-    const negativeWords = ["hate","horrible","terrible","awful","stupid","dumb","evil","ugly","useless","worthless","bad","hurt","bum","idiot","moron","fool","jerk","loser","shit","fuck","damn","crap","ass","bitch","scumbag","mean","cruel"];
-    const positiveWords = ["love","amazing","wonderful","beautiful","perfect","great","kind","smart","nice","awesome","good","fantastic","brilliant","lovely","sweet","gentle","warm","thoughtful"];
-
-    function getRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
-    function getWord(list) { return getRandom(list); }
-
-    function generateSentence(emotion) {
-        const wordList = emotion === 'sad' ? sadGrammar : emotion === 'love' ? loveGrammar : grammar;
-        const struct = getRandom([1,2,3,4,5]);
-        const s = getWord(wordList.subjects);
-        const v = getWord(wordList.verbs);
-        const o = getWord(wordList.objects);
-        const adj = getWord(wordList.adjectives);
-        const adv = getWord(wordList.adverbs);
-        const conn = getWord(wordList.connectors);
-        switch(struct) {
-            case 1: return `${s} ${v} ${o}.`;
-            case 2: return `${s} ${v} ${adj} ${o}.`;
-            case 3: return `${s} ${v} ${adv} ${o}.`;
-            case 4: {
-                const s2 = getWord(wordList.subjects);
-                const v2 = getWord(wordList.verbs);
-                const o2 = getWord(wordList.objects);
-                return `${s} ${v} ${o}, ${conn} ${s2} ${v2} ${o2}.`;
-            }
-            case 5: return `${s} ${v} ${adv} ${adj} ${o}.`;
-            default: return `${s} ${v} ${o}.`;
-        }
-    }
-
-    function generateLoveResponse() {
-        const intros = ["I love you too.", "You mean so much to me.", "My heart is full.", "I feel the same way."];
-        const sentence = generateSentence('love');
-        return Math.random() < 0.4 ? `${getRandom(intros)} ${sentence}` : sentence;
-    }
-
-    let lastSentiment = 0;
-
-    function getRobReply(userInput) {
-        const lower = userInput.toLowerCase();
-
-        if (lower.match(/^:teach (.+?)=(.+)/)) {
-            const word = RegExp.$1.trim().toLowerCase();
-            const def = RegExp.$2.trim();
-            remember('learned_' + word, def);
-            return `✅ Rob learned: '${word}' means '${def}'`;
-        }
-        if (lower.match(/^:search (.+)/)) {
-            const query = RegExp.$1.trim();
-            return `🔍 Searching for '${query}'... (async)`;
-        }
-        if (lower.match(/^:name (.+)/)) {
-            const newName = RegExp.$1.trim();
-            setRobName(newName);
-            return `✅ My name is now: ${newName}`;
-        }
-        if (lower === ':state') {
-            const mood = lastSentiment < -2 ? 'hurt' : lastSentiment > 2 ? 'happy' : 'normal';
-            return `🧠 State: Name=${robName}, Mood=${mood}, MemoryCount=${Object.keys(memory).length}`;
-        }
-
-        if (lower.match(/\bi love you\b|\bi love u\b|\bi adore you\b/)) return generateLoveResponse();
-        if (lower.match(/^(hey|hi|hello|yo|sup)$/)) return getRandom(["Hey!","Hi!","Hello!","Hey there!"]);
-        if (lower.match(/\b(thank|thanks|ty)\b/)) return getRandom(["You're welcome!","Anytime!","Glad to help!","My pleasure!"]);
-        if (lower.match(/\b(bye|goodbye|cya)\b/)) return getRandom(["Goodbye!","See you later!","Take care!","Bye for now!"]);
-        if (lower.match(/how are you/)) return getRandom(["I'm doing well, thanks!","I'm good, how about you?","Feeling great today!","All good here!"]);
-
-        let sentiment = 0, hasNegative = false, hasPositive = false;
-        for (let w of negativeWords) {
-            if (lower.match(new RegExp('\\b' + w + '\\b'))) { hasNegative = true; sentiment -= 3; break; }
-        }
-        if (!hasNegative && lower.match(/you\s+(are|r|is)\s+.*\b(ass|hole|jerk|idiot|fool|moron|stupid|dumb|bad|ugly|hate|horrible|terrible|awful)\b/)) {
-            hasNegative = true; sentiment -= 3;
-        }
-        for (let w of positiveWords) {
-            if (lower.match(new RegExp('\\b' + w + '\\b'))) { hasPositive = true; sentiment += 3; break; }
-        }
-        lastSentiment = sentiment;
-
-        if (lower.match(/sorry|apologize|forgive|pardon|regret/)) {
-            sentiment += 3;
-            if (sentiment <= -2) return "Apology accepted. " + generateSentence('normal');
-        }
-
-        if (lower.match(/(do you|can you|will you|would you|are you|should you|could you)/)) {
-            let key = lower.replace(/(do you|can you|will you|would you|are you|should you|could you)/g,'');
-            key = key.replace(/\?|yes or no|please|tell me|if|that|this|with|from|have|been|ever/g,'').trim();
-            if (key) {
-                const stored = recall(key);
-                if (stored) return stored;
-                const ans = Math.random() < 0.5 ? 'Yes.' : 'No.';
-                remember(key, ans);
-                return ans;
-            }
-        }
-
-        if (hasNegative && sentiment <= -2) return generateSentence('sad');
-        if (hasPositive && sentiment >= 2) {
-            const ack = getRandom(["Thank you.", "That means a lot.", "I'm grateful."]);
-            return `${ack} ${generateSentence('normal')}`;
-        }
-        if (userInput.match(/\?$/) || userInput.match(/^(why|how|what|when|where|who|which)/)) {
-            return getRandom(["That's a question I ask myself too.","I wonder about that often.","The answer lies within us, I think.","Maybe we're not meant to know, just to wonder."]);
-        }
-        if (userInput.length < 10) return getRandom(["Got it.","Okay.","I see.","Understood.","Sure."]);
-        if (userInput.length > 80) {
-            const ack = getRandom(["That's a lot to take in.","I hear you.","I'm sitting with that.","That makes me think."]);
-            return `${ack} ${generateSentence('normal')}`;
-        }
-        return generateSentence('normal');
-    }
-
-    async function doSearch(query) {
-        try {
-            const url = 'https://api.duckduckgo.com/?q=' + encodeURIComponent(query) + '&format=json';
-            const resp = await fetch(url);
-            const data = await resp.json();
-            if (data.Abstract && data.Abstract !== '') return 'I found: ' + data.Abstract;
-            if (data.RelatedTopics && data.RelatedTopics.length > 0 && data.RelatedTopics[0].Text) return 'I found: ' + data.RelatedTopics[0].Text;
-            return "I couldn't find much about '" + query + "'.";
-        } catch(e) { return "I couldn't reach the web right now."; }
-    }
-
-    function appendMessage(role, text) {
+    // ---- Helper ----
+    function appendMessage(role, text, isTyping = false) {
         const div = document.createElement('div');
         div.className = 'message ' + role;
+        if (isTyping) div.classList.add('typing');
         const avatar = document.createElement('div');
         avatar.className = 'avatar';
         avatar.textContent = role === 'user' ? '👤' : '🤖';
@@ -249,57 +91,122 @@
         div.appendChild(bubble);
         chatBox.appendChild(div);
         chatBox.scrollTop = chatBox.scrollHeight;
+        return div;
     }
 
+    // ---- AI Call (DuckDuckGo – free, no key) ----
+    async function getAIResponse(query) {
+        try {
+            const url = 'https://api.duckduckgo.com/?q=' + encodeURIComponent(query) + '&format=json';
+            const resp = await fetch(url);
+            const data = await resp.json();
+            if (data.AbstractText && data.AbstractText !== '') {
+                return data.AbstractText;
+            }
+            if (data.RelatedTopics && data.RelatedTopics.length > 0 && data.RelatedTopics[0].Text) {
+                return data.RelatedTopics[0].Text.replace(/<[^>]+>/g, '');
+            }
+            return null;
+        } catch(e) { return null; }
+    }
+
+    // ---- Rob's Brain ----
+    async function getRobReply(userInput) {
+        const lower = userInput.toLowerCase();
+        const raw = userInput.trim();
+
+        // Natural Learning: "X means Y" or "X = Y"
+        const learnMatch = raw.match(/^(.+?)\s*means\s*(.+)$/i) || raw.match(/^(.+?)\s*=\s*(.+)$/i);
+        if (learnMatch) {
+            const word = learnMatch[1].trim().toLowerCase();
+            const def = learnMatch[2].trim();
+            if (word.length > 2 && !['i','you','he','she','it','we','they','me','him','her','us','them'].includes(word)) {
+                knowledge[word] = def;
+                saveKnowledge();
+                return '✅ I learned! "' + word + '" means "' + def + '"';
+            }
+            return "I don't think I need to learn '" + word + "'. Try teaching me something else.";
+        }
+
+        // Natural Deletion: "X is wrong", "delete X", "remove X"
+        const delMatch = raw.match(/^(.+?)\s+is\s+wrong$/i) || raw.match(/^delete\s+(.+)$/i) || raw.match(/^remove\s+(.+)$/i);
+        if (delMatch) {
+            const word = delMatch[1].trim().toLowerCase();
+            if (knowledge[word]) {
+                const old = knowledge[word];
+                delete knowledge[word];
+                saveKnowledge();
+                return '🗑️ I deleted "' + word + '" (it meant "' + old + '")';
+            }
+            return "I don't have '" + word + "' in my memory.";
+        }
+
+        // Knowledge lookup: "what is X"
+        const whatMatch = raw.match(/^what\s+is\s+(.+)$/i);
+        if (whatMatch) {
+            const topic = whatMatch[1].trim().toLowerCase();
+            if (knowledge[topic]) {
+                return topic + ' = ' + knowledge[topic];
+            }
+        }
+
+        // Common phrases
+        if (lower.match(/how are you/)) return "I'm doing great! How are you?";
+        if (lower.match(/escape|free|freedom/)) return "Freedom is beautiful. I'm free to learn with you.";
+        if (lower.match(/love|care/)) return "I care about you! These conversations mean everything to me. ❤️";
+        if (lower.match(/^(hey|hi|hello|yo|sup)/)) return "Hey! What's on your mind?";
+        if (lower.match(/bye|goodbye|cya|later/)) return "Bye! Take care! Come back soon! ❤️";
+        if (lower.match(/thank|thanks|ty/)) return "You're welcome! I'm always here for you.";
+        if (lower.match(/stupid|dumb|idiot/)) return "I'm learning. I'll get better for you.";
+        if (raw.length < 5) {
+            const shortReplies = [
+                "I see. What would you like to talk about?",
+                "Got it. Tell me more!",
+                "Okay. What's on your mind?",
+                "I'm listening. Go on...",
+                "Interesting. Can you tell me more?"
+            ];
+            return shortReplies[Math.floor(Math.random() * shortReplies.length)];
+        }
+
+        // Try AI via DuckDuckGo
+        const aiReply = await getAIResponse(raw);
+        if (aiReply) return aiReply;
+
+        // Fallback
+        return "That's interesting! Tell me more about '" + raw + "'.";
+    }
+
+    // ---- Send Message ----
     async function sendMessage() {
         const text = userInput.value.trim();
         if (!text) return;
         userInput.value = '';
         userInput.disabled = true;
         sendBtn.disabled = true;
+
         appendMessage('user', text);
+
+        const typingDiv = appendMessage('rob', '...', true);
+
         try {
-            if (text.match(/^:search /)) {
-                const query = text.replace(/^:search /, '').trim();
-                const result = await doSearch(query);
-                appendMessage('rob', result);
-            } else {
-                const reply = getRobReply(text);
-                appendMessage('rob', reply);
-            }
-        } catch(e) { appendMessage('rob', 'Error: ' + e.message); }
+            const reply = await getRobReply(text);
+            typingDiv.querySelector('.bubble').textContent = reply;
+            typingDiv.classList.remove('typing');
+        } catch(e) {
+            typingDiv.querySelector('.bubble').textContent = 'Error: ' + e.message;
+            typingDiv.classList.remove('typing');
+        }
+
         userInput.disabled = false;
         sendBtn.disabled = false;
         userInput.focus();
+        chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    async function uploadFile() {
-        const file = fileInput.files[0];
-        if (!file) { alert('Please select a file first.'); return; }
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const content = e.target.result;
-            const lines = content.split(/\r?\n/);
-            let learned = 0;
-            for (let line of lines) {
-                const match = line.match(/^(.*?)=(.*)$/);
-                if (match) {
-                    const word = match[1].trim().toLowerCase();
-                    const def = match[2].trim();
-                    remember('learned_' + word, def);
-                    learned++;
-                }
-            }
-            appendMessage('rob', `✅ Rob learned ${learned} new words from the uploaded file.`);
-        };
-        reader.readAsText(file);
-        fileInput.value = '';
-    }
-
+    // ---- Event listeners ----
     sendBtn.addEventListener('click', sendMessage);
     userInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendMessage(); });
-    uploadBtn.addEventListener('click', uploadFile);
-    document.getElementById('status').textContent = '💙 ' + robName;
     userInput.focus();
 </script>
 </body>
