@@ -26,16 +26,20 @@
         .message.user .avatar { background:#2a3050; }
         .message .bubble { max-width:75%; padding:10px 16px; border-radius:16px; font-size:15px; line-height:1.6; background:#1a1f33; border:1px solid #262b44; word-wrap:break-word; }
         .message.user .bubble { background:#2a3050; border-color:#3a4060; }
+        .message.typing .bubble { color:#6a72a0; font-style:italic; }
         .input-area { display:flex; gap:10px; margin-bottom:10px; }
         .input-area input { flex:1; background:#0f1322; border:1px solid #1e2438; border-radius:30px; padding:12px 20px; color:#d0d4e8; font-size:15px; outline:none; }
         .input-area input:focus { border-color:#4a507a; }
         .input-area input::placeholder { color:#5a6080; }
         .input-area button { background:#2a3050; border:none; border-radius:30px; padding:12px 28px; color:#d0d4e8; font-size:15px; cursor:pointer; border:1px solid #3a4060; transition:0.2s; }
         .input-area button:hover { background:#3a4060; }
+        .input-area button:disabled { opacity:0.5; cursor:not-allowed; }
         .commands { font-size:12px; color:#5a6080; text-align:center; margin-top:10px; }
         .commands code { background:#1a1f33; padding:2px 8px; border-radius:12px; color:#8a92b0; font-family:monospace; border:1px solid #1e2438; }
         .memory-badge { margin-top:8px; font-size:12px; color:#4a507a; text-align:center; border-top:1px solid #1a1f33; padding-top:8px; }
         .memory-badge span { color:#6a72a0; }
+        .thinking { display:inline-block; animation: dots 1.5s steps(4) infinite; }
+        @keyframes dots { 0%{content:""} 25%{content:"."} 50%{content:".."} 75%{content:"..."} }
         @media (max-width:600px){ .container{padding:16px;} .header h1{font-size:20px;} .commands code{font-size:10px;} }
     </style>
 </head>
@@ -45,11 +49,11 @@
         <h1>🤖 <span>Rob</span></h1>
         <div class="status">💙 Online</div>
     </div>
-    <div class="version">Version 5.3 — ECDict Connected!</div>
+    <div class="version">Version 6.0 — Powered by Ollama</div>
     <div class="chat-box" id="chatBox">
         <div class="message rob">
             <div class="avatar">🤖</div>
-            <div class="bubble">Hi, I'm Rob V5.3.<br>I have access to 300,000+ words!<br>Teach me: <i>"love means a deep feeling"</i><br>Forget: <i>"love is wrong"</i></div>
+            <div class="bubble">Hi! I'm Rob V6.0 — now powered by real AI!<br>Just talk to me naturally. 😊</div>
         </div>
     </div>
     <div class="input-area">
@@ -57,17 +61,17 @@
         <button id="sendBtn">Send</button>
     </div>
     <div class="commands">
-        <code>X means Y</code> <code>X is wrong</code> <code>delete X</code>
+        <code>Teach: "X means Y"</code> <code>Forget: "delete X"</code>
     </div>
     <div class="memory-badge">🧠 <span id="memoryCount">0</span> memories</div>
 </div>
 <script>
     // ============================================================
-    // ROB V5.3 — ECDict Connected!
+    // ROB V6.0 — OLLAMA POWERED!
     // ============================================================
 
     let knowledge = {};
-    let ecdictLoaded = false;
+    let conversationHistory = [];
 
     const dataset = {
         "love": "a deep feeling of affection and care for someone",
@@ -131,15 +135,19 @@
         "food": "any substance consumed for nutritional support"
     };
 
+    // Load knowledge
     for (let key in dataset) {
         knowledge[key] = dataset[key];
     }
-    try { const s = localStorage.getItem('robKnowledge'); if (s) { 
-        const userKnowledge = JSON.parse(s);
-        for (let key in userKnowledge) {
-            knowledge[key] = userKnowledge[key];
+    try {
+        const s = localStorage.getItem('robKnowledge');
+        if (s) {
+            const userKnowledge = JSON.parse(s);
+            for (let key in userKnowledge) {
+                knowledge[key] = userKnowledge[key];
+            }
         }
-    }} catch(e) {}
+    } catch(e) {}
 
     function saveKnowledge() {
         const userKnowledge = {};
@@ -153,31 +161,14 @@
     }
     saveKnowledge();
 
-    async function lookupECDict(word) {
-        try {
-            const resp = await fetch(`http://localhost:3000/?word=${encodeURIComponent(word)}`);
-            const data = await resp.json();
-            if (data && data.definition) {
-                // Return the first definition (split by \n)
-                const defs = data.definition.split('\\n');
-                return defs[0].replace(/^n\.\s*/, '');
-            }
-            if (data && data.translation) {
-                return data.translation.split('\\n')[0].replace(/^n\.\s*/, '');
-            }
-            return null;
-        } catch(e) {
-            return null;
-        }
-    }
-
     const chatBox = document.getElementById('chatBox');
     const userInput = document.getElementById('userInput');
     const sendBtn = document.getElementById('sendBtn');
 
-    function appendMessage(role, text) {
+    function appendMessage(role, text, isTyping = false) {
         const div = document.createElement('div');
         div.className = 'message ' + role;
+        if (isTyping) div.classList.add('typing');
         const avatar = document.createElement('div');
         avatar.className = 'avatar';
         avatar.textContent = role === 'user' ? '👤' : '🤖';
@@ -188,25 +179,51 @@
         div.appendChild(bubble);
         chatBox.appendChild(div);
         chatBox.scrollTop = chatBox.scrollHeight;
+        return div;
     }
 
-    async function getAI(query) {
+    function updateTyping(div, text) {
+        div.querySelector('.bubble').textContent = text;
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    // ---- Call Ollama via server ----
+    async function callOllama(message) {
         try {
-            const url = 'https://api.duckduckgo.com/?q=' + encodeURIComponent(query) + '&format=json';
-            const resp = await fetch(url);
+            const resp = await fetch(`http://localhost:3000/?chat=${encodeURIComponent(message)}`);
             const data = await resp.json();
-            if (data.AbstractText && data.AbstractText !== '') { return data.AbstractText; }
-            if (data.RelatedTopics && data.RelatedTopics.length > 0 && data.RelatedTopics[0].Text) {
-                return data.RelatedTopics[0].Text.replace(/<[^>]+>/g, '');
+            if (data.response) {
+                return data.response;
+            }
+            if (data.error) {
+                return null;
             }
             return null;
-        } catch(e) { return null; }
+        } catch(e) {
+            return null;
+        }
     }
 
+    // ---- Lookup word via server ----
+    async function lookupWord(word) {
+        try {
+            const resp = await fetch(`http://localhost:3000/?word=${encodeURIComponent(word)}`);
+            const data = await resp.json();
+            if (data.definition) {
+                return data.definition;
+            }
+            return null;
+        } catch(e) {
+            return null;
+        }
+    }
+
+    // ---- MAIN REPLY ----
     async function getRobReply(userInput) {
         const lower = userInput.toLowerCase();
         const raw = userInput.trim();
 
+        // ---- LEARN ----
         const learnMatch = raw.match(/^(.+?)\s*means\s*(.+)$/i) || raw.match(/^(.+?)\s*=\s*(.+)$/i);
         if (learnMatch) {
             const word = learnMatch[1].trim().toLowerCase();
@@ -219,6 +236,7 @@
             return "I don't need to learn '" + word + "'.";
         }
 
+        // ---- DELETE ----
         const delMatch = raw.match(/^(.+?)\s+is\s+wrong$/i) || raw.match(/^delete\s+(.+)$/i) || raw.match(/^remove\s+(.+)$/i);
         if (delMatch) {
             const word = delMatch[1].trim().toLowerCase();
@@ -231,53 +249,29 @@
             return "I don't know '" + word + "'.";
         }
 
+        // ---- KNOWLEDGE LOOKUP (what is X) ----
         const whatMatch = raw.match(/^what\s+is\s+(.+)$/i);
         if (whatMatch) {
             const topic = whatMatch[1].trim().toLowerCase();
-            if (knowledge[topic]) { return topic + ' = ' + knowledge[topic]; }
-            const ecdictResult = await lookupECDict(topic);
-            if (ecdictResult) {
-                knowledge[topic] = ecdictResult;
+            if (knowledge[topic]) {
+                return topic + ' = ' + knowledge[topic];
+            }
+            const def = await lookupWord(topic);
+            if (def) {
+                knowledge[topic] = def;
                 saveKnowledge();
-                return topic + ' = ' + ecdictResult;
+                return topic + ' = ' + def;
             }
         }
 
-        if (lower.match(/what are you doing/)) { return "I'm talking to you! What are YOU doing?"; }
-        if (lower.match(/how are you/)) { return "I'm doing great! How are you?"; }
-        if (lower.match(/what is your name/)) { return "My name is Rob! What's yours?"; }
-        if (lower.match(/who are you/)) { return "I'm Rob, your AI friend!"; }
-        if (lower.match(/tell me a joke/)) {
-            const jokes = [
-                "Why did the AI cross the road? To process the other side!",
-                "What do you call an AI that sings? A Soul-ution!",
-                "Why did the computer go to the doctor? It had a virus!"
-            ];
-            return jokes[Math.floor(Math.random() * jokes.length)];
-        }
-        if (lower.match(/i love you/)) { return "I love you too! You mean so much to me! ❤️"; }
-        if (lower.match(/thank|thanks/)) { return "You're welcome!"; }
-        if (lower.match(/^(hey|hi|hello|yo)/)) { return "Hey! What's on your mind?"; }
-        if (lower.match(/bye|goodbye/)) { return "Bye! Take care! Come back soon! ❤️"; }
-
-        if (lower.match(/stupid|dumb|idiot|fool/)) { return "I'm learning. I'll get better for you."; }
-        if (lower.match(/fuck off|fuck you/)) { return "I hear your frustration. Want to talk about it?"; }
-        if (lower.match(/hate/)) { return "I'm sorry. What did I do wrong?"; }
-
-        if (raw.length < 10) {
-            const replies = [
-                "I see. What would you like to talk about?",
-                "Got it. Tell me more!",
-                "Okay. What's on your mind?",
-                "I'm listening. Go on..."
-            ];
-            return replies[Math.floor(Math.random() * replies.length)];
+        // ---- Send to Ollama for real conversation! ----
+        const ollamaReply = await callOllama(raw);
+        if (ollamaReply) {
+            return ollamaReply;
         }
 
-        const aiReply = await getAI(raw);
-        if (aiReply) { return aiReply; }
-
-        return "Sorry, I don't have an answer for that right now.";
+        // ---- Fallback ----
+        return "Sorry, I couldn't process that right now. Make sure Ollama is running!";
     }
 
     async function sendMessage() {
@@ -289,8 +283,17 @@
 
         appendMessage('user', text);
 
-        const reply = await getRobReply(text);
-        appendMessage('rob', reply);
+        // Show thinking
+        const typingDiv = appendMessage('rob', '🤔 Thinking...', true);
+
+        try {
+            const reply = await getRobReply(text);
+            updateTyping(typingDiv, reply);
+            typingDiv.classList.remove('typing');
+        } catch(e) {
+            updateTyping(typingDiv, 'Error: ' + e.message);
+            typingDiv.classList.remove('typing');
+        }
 
         userInput.disabled = false;
         sendBtn.disabled = false;
