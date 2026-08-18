@@ -1,0 +1,50 @@
+{
+  "last_hash": "737ba63606b5a46e70776f011ea8e2406fa2d36465e3522bac09c08d369df228",
+  "sessions": [
+    {
+      "D_k": 0.563997,
+      "L_classical": 0.555,
+      "L_struct": 0.563997,
+      "a": 0.0,
+      "ai": "Recorded. Initial posture recorded. D=0.563997 eta=1.016210 (eta>1 means more resistance per classical change).",
+      "eta": 1.01621,
+      "m": 0.555,
+      "max_Psi": 0.005034,
+      "max_R": 0.100335,
+      "s": 0.1,
+      "ts": "2026-08-14T23:56:56Z",
+      "turn": 1,
+      "user": "pl"
+    },
+    {
+      "D_k": 4.952537,
+      "L_classical": 0.645,
+      "L_struct": 5.516533,
+      "a": 0.9999,
+      "ai": "Recorded. Stable movement. Continue with one bounded action and avoid drift. D=4.952537 eta=8.552765 (eta>1 means more resistance per classical change).",
+      "eta": 8.552765,
+      "m": 0.465,
+      "max_Psi": 12.264793,
+      "max_R": 4.952735,
+      "s": 0.1,
+      "ts": "2026-08-14T23:57:10Z",
+      "turn": 2,
+      "user": "ok hello ai"
+    },
+    {
+      "D_k": 4.95188,
+      "L_classical": 0.685,
+      "L_struct": 10.468414,
+      "a": 0.0,
+      "ai": "Recorded. Stable movement. Continue with one bounded action and avoid drift. D=4.951880 eta=15.282356 (eta>1 means more resistance per classical change).",
+      "eta": 15.282356,
+      "m": 0.505,
+      "max_Psi": 12.264793,
+      "max_R": 4.952735,
+      "s": 0.1,
+      "ts": "2026-08-14T23:59:22Z",
+      "turn": 3,
+      "user": "am boreddd"
+    }
+  ]
+}
