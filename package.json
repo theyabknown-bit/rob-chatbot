@@ -1,0 +1,16 @@
+﻿{
+  "name": "rob-server",
+  "version": "1.0.0",
+  "description": "Rob AI server with Ollama and ECDict",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ecdict": "^0.0.4",
+    "node-fetch": "^2.6.7"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
