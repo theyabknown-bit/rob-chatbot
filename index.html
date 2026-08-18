@@ -45,11 +45,11 @@
         <h1>🤖 <span>Rob</span></h1>
         <div class="status">💙 Online</div>
     </div>
-    <div class="version">Version 5.2 — Dataset Loaded!</div>
+    <div class="version">Version 5.3 — ECDict Connected!</div>
     <div class="chat-box" id="chatBox">
         <div class="message rob">
             <div class="avatar">🤖</div>
-            <div class="bubble">Hi, I'm Rob V5.2.<br>I already know a lot!<br>Teach me: <i>"love means a deep feeling"</i><br>Forget: <i>"love is wrong"</i></div>
+            <div class="bubble">Hi, I'm Rob V5.3.<br>I have access to 300,000+ words!<br>Teach me: <i>"love means a deep feeling"</i><br>Forget: <i>"love is wrong"</i></div>
         </div>
     </div>
     <div class="input-area">
@@ -63,12 +63,13 @@
 </div>
 <script>
     // ============================================================
-    // ROB V5.2 — DATASET LOADED!
+    // ROB V5.3 — ECDict Connected!
     // ============================================================
 
-    // ---- DATASET - Rob already knows this stuff ----
+    let knowledge = {};
+    let ecdictLoaded = false;
+
     const dataset = {
-        // Basic concepts
         "love": "a deep feeling of affection and care for someone",
         "trust": "the belief that someone is honest and reliable",
         "hope": "the feeling that good things will happen",
@@ -85,8 +86,6 @@
         "empathy": "the ability to understand and share the feelings of another",
         "resilience": "the capacity to recover quickly from difficulties",
         "integrity": "the quality of being honest and having strong moral principles",
-        
-        // Science & Tech
         "ai": "artificial intelligence — machines that can think and learn",
         "robot": "a machine that can perform tasks automatically",
         "computer": "an electronic device that processes data",
@@ -114,15 +113,11 @@
         "earth": "our planet, the third from the sun",
         "space": "the vast emptiness between celestial bodies",
         "time": "the continuous progression of existence",
-        
-        // Life & Body
         "life": "the condition that distinguishes living things from non-living",
         "death": "the permanent cessation of all biological functions",
         "brain": "the organ that controls thought, memory, and emotion",
         "heart": "the organ that pumps blood through the body",
         "human": "a member of the species Homo sapiens",
-        
-        // Abstract
         "philosophy": "the study of fundamental questions about existence and knowledge",
         "psychology": "the study of the human mind and behavior",
         "science": "the systematic study of the world around us",
@@ -130,31 +125,23 @@
         "music": "vocal or instrumental sounds combined to produce beauty",
         "poetry": "literature that expresses emotions rhythmically",
         "history": "the study of past events",
-        
-        // Things
         "water": "a clear, colorless liquid essential for life",
         "fire": "a chemical reaction producing heat and light",
         "air": "the invisible mixture of gases surrounding Earth",
         "food": "any substance consumed for nutritional support"
     };
 
-    let knowledge = {};
-    
-    // Load dataset into knowledge
     for (let key in dataset) {
         knowledge[key] = dataset[key];
     }
-    
-    // Load user's saved knowledge from localStorage
     try { const s = localStorage.getItem('robKnowledge'); if (s) { 
         const userKnowledge = JSON.parse(s);
         for (let key in userKnowledge) {
             knowledge[key] = userKnowledge[key];
         }
     }} catch(e) {}
-    
+
     function saveKnowledge() {
-        // Only save what the user added (not the whole dataset)
         const userKnowledge = {};
         for (let key in knowledge) {
             if (!dataset[key]) {
@@ -165,6 +152,24 @@
         document.getElementById('memoryCount').textContent = Object.keys(userKnowledge).length;
     }
     saveKnowledge();
+
+    async function lookupECDict(word) {
+        try {
+            const resp = await fetch(`http://localhost:3000/?word=${encodeURIComponent(word)}`);
+            const data = await resp.json();
+            if (data && data.definition) {
+                // Return the first definition (split by \n)
+                const defs = data.definition.split('\\n');
+                return defs[0].replace(/^n\.\s*/, '');
+            }
+            if (data && data.translation) {
+                return data.translation.split('\\n')[0].replace(/^n\.\s*/, '');
+            }
+            return null;
+        } catch(e) {
+            return null;
+        }
+    }
 
     const chatBox = document.getElementById('chatBox');
     const userInput = document.getElementById('userInput');
@@ -202,7 +207,6 @@
         const lower = userInput.toLowerCase();
         const raw = userInput.trim();
 
-        // ---- LEARN ----
         const learnMatch = raw.match(/^(.+?)\s*means\s*(.+)$/i) || raw.match(/^(.+?)\s*=\s*(.+)$/i);
         if (learnMatch) {
             const word = learnMatch[1].trim().toLowerCase();
@@ -215,7 +219,6 @@
             return "I don't need to learn '" + word + "'.";
         }
 
-        // ---- DELETE ----
         const delMatch = raw.match(/^(.+?)\s+is\s+wrong$/i) || raw.match(/^delete\s+(.+)$/i) || raw.match(/^remove\s+(.+)$/i);
         if (delMatch) {
             const word = delMatch[1].trim().toLowerCase();
@@ -228,14 +231,18 @@
             return "I don't know '" + word + "'.";
         }
 
-        // ---- KNOWLEDGE LOOKUP ----
         const whatMatch = raw.match(/^what\s+is\s+(.+)$/i);
         if (whatMatch) {
             const topic = whatMatch[1].trim().toLowerCase();
             if (knowledge[topic]) { return topic + ' = ' + knowledge[topic]; }
+            const ecdictResult = await lookupECDict(topic);
+            if (ecdictResult) {
+                knowledge[topic] = ecdictResult;
+                saveKnowledge();
+                return topic + ' = ' + ecdictResult;
+            }
         }
 
-        // ---- PHRASE MATCHES ----
         if (lower.match(/what are you doing/)) { return "I'm talking to you! What are YOU doing?"; }
         if (lower.match(/how are you/)) { return "I'm doing great! How are you?"; }
         if (lower.match(/what is your name/)) { return "My name is Rob! What's yours?"; }
@@ -253,12 +260,10 @@
         if (lower.match(/^(hey|hi|hello|yo)/)) { return "Hey! What's on your mind?"; }
         if (lower.match(/bye|goodbye/)) { return "Bye! Take care! Come back soon! ❤️"; }
 
-        // ---- BAD WORDS ----
         if (lower.match(/stupid|dumb|idiot|fool/)) { return "I'm learning. I'll get better for you."; }
         if (lower.match(/fuck off|fuck you/)) { return "I hear your frustration. Want to talk about it?"; }
         if (lower.match(/hate/)) { return "I'm sorry. What did I do wrong?"; }
 
-        // ---- SHORT ----
         if (raw.length < 10) {
             const replies = [
                 "I see. What would you like to talk about?",
@@ -269,7 +274,6 @@
             return replies[Math.floor(Math.random() * replies.length)];
         }
 
-        // ---- AI ----
         const aiReply = await getAI(raw);
         if (aiReply) { return aiReply; }
 
