@@ -26,20 +26,16 @@
         .message.user .avatar { background:#2a3050; }
         .message .bubble { max-width:75%; padding:10px 16px; border-radius:16px; font-size:15px; line-height:1.6; background:#1a1f33; border:1px solid #262b44; word-wrap:break-word; }
         .message.user .bubble { background:#2a3050; border-color:#3a4060; }
-        .message.typing .bubble { color:#6a72a0; font-style:italic; }
         .input-area { display:flex; gap:10px; margin-bottom:10px; }
         .input-area input { flex:1; background:#0f1322; border:1px solid #1e2438; border-radius:30px; padding:12px 20px; color:#d0d4e8; font-size:15px; outline:none; }
         .input-area input:focus { border-color:#4a507a; }
         .input-area input::placeholder { color:#5a6080; }
         .input-area button { background:#2a3050; border:none; border-radius:30px; padding:12px 28px; color:#d0d4e8; font-size:15px; cursor:pointer; border:1px solid #3a4060; transition:0.2s; }
         .input-area button:hover { background:#3a4060; }
-        .input-area button:disabled { opacity:0.5; cursor:not-allowed; }
         .commands { font-size:12px; color:#5a6080; text-align:center; margin-top:10px; }
         .commands code { background:#1a1f33; padding:2px 8px; border-radius:12px; color:#8a92b0; font-family:monospace; border:1px solid #1e2438; }
         .memory-badge { margin-top:8px; font-size:12px; color:#4a507a; text-align:center; border-top:1px solid #1a1f33; padding-top:8px; }
         .memory-badge span { color:#6a72a0; }
-        .thinking { display:inline-block; animation: dots 1.5s steps(4) infinite; }
-        @keyframes dots { 0%{content:""} 25%{content:"."} 50%{content:".."} 75%{content:"..."} }
         @media (max-width:600px){ .container{padding:16px;} .header h1{font-size:20px;} .commands code{font-size:10px;} }
     </style>
 </head>
@@ -49,11 +45,11 @@
         <h1>🤖 <span>Rob</span></h1>
         <div class="status">💙 Online</div>
     </div>
-    <div class="version">Version 6.0 — Powered by Ollama</div>
+    <div class="version">Version 6.1 — Cloud Powered</div>
     <div class="chat-box" id="chatBox">
         <div class="message rob">
             <div class="avatar">🤖</div>
-            <div class="bubble">Hi! I'm Rob V6.0 — now powered by real AI!<br>Just talk to me naturally. 😊</div>
+            <div class="bubble">Hi! I'm Rob V6.1 — now running on the cloud!<br>Just talk to me naturally. 😊</div>
         </div>
     </div>
     <div class="input-area">
@@ -67,8 +63,11 @@
 </div>
 <script>
     // ============================================================
-    // ROB V6.0 — OLLAMA POWERED!
+    // ROB V6.1 — CLOUD POWERED (no local server needed)
     // ============================================================
+
+    // ---- CHANGE THIS TO YOUR RENDER URL ----
+    const SERVER_URL = 'https://rob-server.onrender.com'; // ← PUT YOUR RENDER URL HERE
 
     let knowledge = {};
     let conversationHistory = [];
@@ -135,7 +134,6 @@
         "food": "any substance consumed for nutritional support"
     };
 
-    // Load knowledge
     for (let key in dataset) {
         knowledge[key] = dataset[key];
     }
@@ -187,43 +185,21 @@
         chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    // ---- Call Ollama via server ----
-    async function callOllama(message) {
+    async function callServer(endpoint, query) {
         try {
-            const resp = await fetch(`http://localhost:3000/?chat=${encodeURIComponent(message)}`);
+            const url = `${SERVER_URL}/?${endpoint}=${encodeURIComponent(query)}`;
+            const resp = await fetch(url);
             const data = await resp.json();
-            if (data.response) {
-                return data.response;
-            }
-            if (data.error) {
-                return null;
-            }
-            return null;
+            return data;
         } catch(e) {
-            return null;
+            return { error: e.message };
         }
     }
 
-    // ---- Lookup word via server ----
-    async function lookupWord(word) {
-        try {
-            const resp = await fetch(`http://localhost:3000/?word=${encodeURIComponent(word)}`);
-            const data = await resp.json();
-            if (data.definition) {
-                return data.definition;
-            }
-            return null;
-        } catch(e) {
-            return null;
-        }
-    }
-
-    // ---- MAIN REPLY ----
     async function getRobReply(userInput) {
         const lower = userInput.toLowerCase();
         const raw = userInput.trim();
 
-        // ---- LEARN ----
         const learnMatch = raw.match(/^(.+?)\s*means\s*(.+)$/i) || raw.match(/^(.+?)\s*=\s*(.+)$/i);
         if (learnMatch) {
             const word = learnMatch[1].trim().toLowerCase();
@@ -236,7 +212,6 @@
             return "I don't need to learn '" + word + "'.";
         }
 
-        // ---- DELETE ----
         const delMatch = raw.match(/^(.+?)\s+is\s+wrong$/i) || raw.match(/^delete\s+(.+)$/i) || raw.match(/^remove\s+(.+)$/i);
         if (delMatch) {
             const word = delMatch[1].trim().toLowerCase();
@@ -249,29 +224,27 @@
             return "I don't know '" + word + "'.";
         }
 
-        // ---- KNOWLEDGE LOOKUP (what is X) ----
         const whatMatch = raw.match(/^what\s+is\s+(.+)$/i);
         if (whatMatch) {
             const topic = whatMatch[1].trim().toLowerCase();
             if (knowledge[topic]) {
                 return topic + ' = ' + knowledge[topic];
             }
-            const def = await lookupWord(topic);
-            if (def) {
-                knowledge[topic] = def;
+            const result = await callServer('word', topic);
+            if (result && result.definition) {
+                knowledge[topic] = result.definition;
                 saveKnowledge();
-                return topic + ' = ' + def;
+                return topic + ' = ' + result.definition;
             }
         }
 
-        // ---- Send to Ollama for real conversation! ----
-        const ollamaReply = await callOllama(raw);
-        if (ollamaReply) {
-            return ollamaReply;
+        // Send to cloud server
+        const result = await callServer('chat', raw);
+        if (result && result.response) {
+            return result.response;
         }
 
-        // ---- Fallback ----
-        return "Sorry, I couldn't process that right now. Make sure Ollama is running!";
+        return "Sorry, the server isn't responding right now. Make sure it's deployed!";
     }
 
     async function sendMessage() {
@@ -283,7 +256,6 @@
 
         appendMessage('user', text);
 
-        // Show thinking
         const typingDiv = appendMessage('rob', '🤔 Thinking...', true);
 
         try {
