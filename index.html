@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ï»¿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -40,8 +40,7 @@
             color: #fff;
             background: linear-gradient(135deg, #6a8cff, #a78bfa);
             border-radius: 50px;
-            border: none;
-            cursor: pointer;
+            text-decoration: none;
             box-shadow: 0 0 30px rgba(106, 140, 255, 0.3);
             transition: transform 0.2s, box-shadow 0.2s;
         }
@@ -49,55 +48,13 @@
             transform: scale(1.05);
             box-shadow: 0 0 50px rgba(106, 140, 255, 0.5);
         }
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="logo">Aura</div>
         <div class="sub">Your AI companion</div>
-        <button class="btn" id="enterBtn" disabled>Loading…</button>
+        <a href="https://red-fog-3t047.trybore.com/?page=aura" class="btn">Enter Aura</a>
     </div>
-
-    <script>
-        // ----- CONFIG URL (change this to your own Gist raw URL) -----
-        const CONFIG_URL = "https://gist.githubusercontent.com/theyabknown-bit/6b6904a28a45cd06ddff08714119860e/raw/063de0fdd03adf7ba0082aeecf976c4540e711ac/gistfile1.txt";
-
-        const btn = document.getElementById('enterBtn');
-
-        async function fetchTunnelUrl() {
-            try {
-                const resp = await fetch(CONFIG_URL);
-                if (!resp.ok) throw new Error('Config not found');
-                const data = await resp.json();
-                return data.tunnel || null;
-            } catch {
-                return null;
-            }
-        }
-
-        async function init() {
-            const tunnel = await fetchTunnelUrl();
-            if (tunnel) {
-                btn.textContent = 'Enter Aura';
-                btn.disabled = false;
-                btn.addEventListener('click', () => {
-                    window.location.href = tunnel + '/?page=aura';
-                });
-            } else {
-                btn.textContent = 'Try Again';
-                btn.disabled = false;
-                btn.addEventListener('click', () => {
-                    window.location.reload();
-                });
-            }
-        }
-
-        init();
-    </script>
 </body>
 </html>
