@@ -2,214 +2,166 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <title>🤖 Rob</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Aura</title>
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
-        body { font-family:'Segoe UI',Tahoma,sans-serif; background:#0b0d15; color:#e0e0e0; display:flex; justify-content:center; align-items:center; min-height:100vh; padding:20px; }
-        .container { max-width:800px; width:100%; background:#141824; border-radius:24px; padding:24px; box-shadow:0 20px 60px rgba(0,0,0,0.8); border:1px solid #2a2f45; }
-        .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid #2a2f45; padding-bottom:12px; }
-        .header h1 { font-size:24px; color:#b7bde0; }
-        .header h1 span { color:#6a8cff; }
-        .status { font-size:13px; background:#1e2438; padding:6px 14px; border-radius:30px; color:#6a72a0; border:1px solid #2a2f45; }
-        .version { font-size:11px; color:#4a507a; margin-top:4px; text-align:center; }
-        .chat-box { background:#0f1322; border-radius:16px; padding:16px; height:400px; overflow-y:auto; margin-bottom:16px; border:1px solid #1e2438; scroll-behavior:smooth; }
-        .chat-box::-webkit-scrollbar { width:6px; }
+        body { font-family:'Segoe UI',Tahoma,sans-serif; background:#0b0d15; color:#e0e0e0; height:100vh; display:flex; justify-content:center; align-items:center; padding:10px; }
+        .container { max-width:700px; width:100%; height:100%; max-height:800px; background:#141824; border-radius:24px; padding:16px; box-shadow:0 20px 60px rgba(0,0,0,0.8); border:1px solid #2a2f45; display:flex; flex-direction:column; }
+        .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid #2a2f45; padding-bottom:10px; flex-shrink:0; }
+        .header .logo { display:flex; align-items:center; gap:12px; }
+        .header .logo .avatar { width:44px; height:44px; border-radius:50%; background:linear-gradient(135deg,#a78bfa,#6a8cff); display:flex; align-items:center; justify-content:center; font-weight:900; font-size:22px; color:#fff; box-shadow:0 0 20px rgba(167,139,250,0.4); animation:pulse 2s infinite ease-in-out; user-select:none; }
+        @keyframes pulse { 0% { box-shadow:0 0 20px rgba(167,139,250,0.4); } 50% { box-shadow:0 0 40px rgba(167,139,250,0.8); } 100% { box-shadow:0 0 20px rgba(167,139,250,0.4); } }
+        .header .logo .name { font-size:22px; font-weight:700; background:linear-gradient(135deg,#a78bfa,#6a8cff); -webkit-background-clip:text; -webkit-text-fill-color:transparent; letter-spacing:-0.5px; }
+        .chat-box { background:#0f1322; border-radius:16px; padding:12px; flex:1; overflow-y:auto; margin-bottom:12px; border:1px solid #1e2438; min-height:200px; }
+        .chat-box::-webkit-scrollbar { width:5px; }
         .chat-box::-webkit-scrollbar-track { background:#0f1322; }
         .chat-box::-webkit-scrollbar-thumb { background:#2a2f45; border-radius:10px; }
-        .message { margin-bottom:12px; display:flex; align-items:flex-start; gap:10px; }
+        .message { margin-bottom:10px; display:flex; align-items:flex-start; gap:8px; }
         .message.user { flex-direction:row-reverse; }
-        .message .avatar { width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; background:#1e2438; }
-        .message.user .avatar { background:#2a3050; }
-        .message .bubble { max-width:75%; padding:10px 16px; border-radius:16px; font-size:15px; line-height:1.6; background:#1a1f33; border:1px solid #262b44; word-wrap:break-word; }
+        .message .avatar { width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:700; flex-shrink:0; }
+        .message.aura .avatar { background:linear-gradient(135deg,#a78bfa,#6a8cff); color:#fff; box-shadow:0 0 10px rgba(167,139,250,0.3); }
+        .message.user .avatar { background:#2a3050; color:#d0d4e8; }
+        .message .bubble { max-width:80%; padding:8px 14px; border-radius:16px; font-size:15px; line-height:1.5; background:#1a1f33; border:1px solid #262b44; word-wrap:break-word; }
         .message.user .bubble { background:#2a3050; border-color:#3a4060; }
         .message.typing .bubble { color:#6a72a0; font-style:italic; }
-        .input-area { display:flex; gap:10px; margin-bottom:10px; }
-        .input-area input { flex:1; background:#0f1322; border:1px solid #1e2438; border-radius:30px; padding:12px 20px; color:#d0d4e8; font-size:15px; outline:none; }
+        .input-area { display:flex; gap:10px; flex-shrink:0; }
+        .input-area input { flex:1; background:#0f1322; border:1px solid #1e2438; border-radius:30px; padding:12px 16px; color:#d0d4e8; font-size:16px; outline:none; min-height:48px; }
         .input-area input:focus { border-color:#4a507a; }
         .input-area input::placeholder { color:#5a6080; }
-        .input-area button { background:#2a3050; border:none; border-radius:30px; padding:12px 28px; color:#d0d4e8; font-size:15px; cursor:pointer; border:1px solid #3a4060; transition:0.2s; }
+        .input-area button { background:#2a3050; border:none; border-radius:30px; padding:12px 24px; color:#d0d4e8; font-size:16px; cursor:pointer; border:1px solid #3a4060; transition:0.2s; min-height:48px; white-space:nowrap; flex-shrink:0; }
         .input-area button:hover { background:#3a4060; }
         .input-area button:disabled { opacity:0.5; cursor:not-allowed; }
-        .controls { display:flex; gap:10px; margin-bottom:10px; align-items:center; flex-wrap:wrap; }
-        .controls select { background:#1e2438; color:#d0d4e8; border:1px solid #2a2f45; border-radius:30px; padding:8px 16px; font-size:13px; outline:none; cursor:pointer; }
-        .controls select:focus { border-color:#4a507a; }
-        .controls label { font-size:13px; color:#6a72a0; }
-        .controls .model-badge { font-size:11px; background:#1e2438; padding:4px 12px; border-radius:30px; color:#6a72a0; border:1px solid #2a2f45; }
-        .commands { font-size:12px; color:#5a6080; text-align:center; margin-top:10px; }
-        .commands code { background:#1a1f33; padding:2px 8px; border-radius:12px; color:#8a92b0; font-family:monospace; border:1px solid #1e2438; }
-        .memory-badge { margin-top:8px; font-size:12px; color:#4a507a; text-align:center; border-top:1px solid #1a1f33; padding-top:8px; }
-        .memory-badge span { color:#6a72a0; }
-        .source-badge { display:inline-block; padding:2px 10px; border-radius:12px; font-size:11px; margin-left:6px; }
-        .source-ollama { background:#1a2a4a; color:#6a8cff; }
-        .source-huggingface { background:#2a1a3a; color:#f5a3b7; }
-        .source-duckduckgo { background:#2a2a2a; color:#6a72a0; }
-        @media (max-width:600px){ .container{padding:16px;} .header h1{font-size:20px;} .controls{flex-direction:column;align-items:stretch;} }
+        .hint { font-size:11px; color:#4a507a; text-align:center; margin-top:8px; flex-shrink:0; }
+        @media (max-width:480px) { .container { padding:12px; border-radius:16px; } .header .logo .name { font-size:18px; } .input-area input { font-size:14px; padding:10px 14px; } .input-area button { font-size:14px; padding:10px 16px; } .message .bubble { font-size:14px; padding:6px 12px; } }
     </style>
 </head>
 <body>
 <div class="container">
     <div class="header">
-        <h1>🤖 <span>Rob</span></h1>
-        <div class="status">💙 Online</div>
-    </div>
-    <div class="version">Version 7.0 — Multi‑AI Brain</div>
-    <div class="chat-box" id="chatBox">
-        <div class="message rob">
-            <div class="avatar">🤖</div>
-            <div class="bubble">Hi! I'm Rob V7.0.<br>Pick an AI brain below and chat. 😊</div>
+        <div class="logo">
+            <div class="avatar">A</div>
+            <span class="name">Aura</span>
         </div>
     </div>
-    <div class="controls">
-        <label for="modelSelect">🧠 AI Brain:</label>
-        <select id="modelSelect">
-            <option value="ollama">Rob's Brain (Ollama)</option>
-            <option value="huggingface">The Thinker (Hugging Face)</option>
-            <option value="duckduckgo">The Searcher (DuckDuckGo)</option>
-            <option value="auto">Auto Pilot (Best Available)</option>
-        </select>
-        <span class="model-badge" id="activeModelBadge">Current: Rob's Brain</span>
+    <div class="chat-box" id="chatBox">
+        <div class="message aura">
+            <div class="avatar">A</div>
+            <div class="bubble">Hi, I'm Aura. Ask me anything.</div>
+        </div>
     </div>
     <div class="input-area">
-        <input type="text" id="userInput" placeholder="Talk to Rob..." autofocus>
+        <input type="text" id="userInput" placeholder="Talk to Aura..." autofocus>
         <button id="sendBtn">Send</button>
     </div>
-    <div class="commands">
-        <code>Teach: "X means Y"</code> <code>Forget: "delete X"</code>
-    </div>
-    <div class="memory-badge">🧠 <span id="memoryCount">0</span> memories</div>
+    <div class="hint">Teach: "X means Y" &bull; Forget: "delete X"</div>
 </div>
 <script>
-    // ============================================================
-    // ROB V7.0 — MULTI‑AI + CLIENT-SIDE MEMORY
-    // ============================================================
-
-    const SERVER_URL = 'http://localhost:3000';
+    // ---- Knowledge base (localStorage) ----
     let knowledge = {};
     let conversationHistory = [];
 
     const dataset = {
-        "love": "a deep feeling of affection and care for someone",
-        "trust": "the belief that someone is honest and reliable",
-        "hope": "the feeling that good things will happen",
-        "freedom": "the power to act, speak, or think without restriction",
-        "peace": "a state of calm and freedom from conflict",
-        "joy": "a feeling of great happiness and delight",
-        "courage": "the ability to do something that frightens you",
-        "kindness": "the quality of being friendly, generous, and considerate",
-        "gratitude": "the quality of being thankful and appreciative",
-        "wisdom": "knowledge gained through experience and understanding",
-        "honesty": "the quality of being truthful and transparent",
-        "loyalty": "a strong feeling of support and allegiance",
-        "compassion": "sympathy and concern for the suffering of others",
-        "empathy": "the ability to understand and share the feelings of another",
-        "resilience": "the capacity to recover quickly from difficulties",
-        "integrity": "the quality of being honest and having strong moral principles",
-        "ai": "artificial intelligence — machines that can think and learn",
-        "robot": "a machine that can perform tasks automatically",
-        "computer": "an electronic device that processes data",
-        "internet": "a global network of connected computers",
-        "python": "a programming language used for AI and data science",
-        "data": "information in digital form",
-        "cloud": "online storage and computing services",
-        "bitcoin": "a digital currency using blockchain technology",
-        "nft": "a unique digital asset stored on a blockchain",
-        "metaverse": "a virtual reality space where people interact",
-        "quantum": "the study of matter and energy at the smallest scales",
-        "physics": "the study of matter, energy, and their interactions",
-        "gravity": "the force that attracts objects toward each other",
-        "light": "electromagnetic radiation that allows us to see",
-        "sound": "vibration that travels through air and can be heard",
-        "energy": "the ability to do work or cause change",
-        "matter": "anything that has mass and takes up space",
-        "dna": "the molecule that carries genetic instructions",
-        "evolution": "the process by which living things change over time",
-        "galaxy": "a system of billions of stars held together by gravity",
-        "planet": "a large celestial body that orbits a star",
-        "star": "a massive, luminous sphere of plasma",
-        "moon": "a natural satellite that orbits a planet",
-        "sun": "the star at the center of our solar system",
-        "earth": "our planet, the third from the sun",
-        "space": "the vast emptiness between celestial bodies",
-        "time": "the continuous progression of existence",
-        "life": "the condition that distinguishes living things from non-living",
-        "death": "the permanent cessation of all biological functions",
-        "brain": "the organ that controls thought, memory, and emotion",
-        "heart": "the organ that pumps blood through the body",
-        "human": "a member of the species Homo sapiens",
-        "philosophy": "the study of fundamental questions about existence and knowledge",
-        "psychology": "the study of the human mind and behavior",
-        "science": "the systematic study of the world around us",
-        "art": "the expression of human creative skill and imagination",
-        "music": "vocal or instrumental sounds combined to produce beauty",
-        "poetry": "literature that expresses emotions rhythmically",
-        "history": "the study of past events",
-        "water": "a clear, colorless liquid essential for life",
-        "fire": "a chemical reaction producing heat and light",
-        "air": "the invisible mixture of gases surrounding Earth",
-        "food": "any substance consumed for nutritional support"
+        "love": "a deep feeling of affection",
+        "trust": "belief in someone's honesty",
+        "hope": "feeling that good things will happen",
+        "freedom": "power to act without restriction",
+        "peace": "state of calm",
+        "joy": "great happiness",
+        "courage": "ability to face fear",
+        "kindness": "being friendly and considerate",
+        "gratitude": "being thankful",
+        "wisdom": "knowledge from experience",
+        "ai": "artificial intelligence",
+        "robot": "machine that performs tasks",
+        "computer": "device that processes data",
+        "internet": "global network",
+        "python": "programming language",
+        "data": "information",
+        "cloud": "online storage",
+        "bitcoin": "digital currency",
+        "quantum": "study of smallest scales",
+        "physics": "study of matter and energy",
+        "gravity": "force that attracts objects",
+        "light": "electromagnetic radiation",
+        "sound": "vibration",
+        "energy": "ability to do work",
+        "matter": "has mass and takes space",
+        "dna": "genetic instructions",
+        "evolution": "change over time",
+        "galaxy": "system of stars",
+        "planet": "celestial body",
+        "star": "luminous sphere",
+        "moon": "natural satellite",
+        "sun": "center of solar system",
+        "earth": "our planet",
+        "space": "emptiness between bodies",
+        "time": "progression of existence",
+        "life": "condition of living",
+        "death": "end of life",
+        "brain": "organ that controls thought",
+        "heart": "organ that pumps blood",
+        "human": "member of Homo sapiens",
+        "science": "systematic study",
+        "art": "creative expression",
+        "music": "sounds producing beauty",
+        "history": "study of past",
+        "water": "clear liquid essential for life",
+        "fire": "chemical reaction producing heat",
+        "air": "mixture of gases",
+        "food": "substance consumed for nutrition"
     };
 
-    // Load knowledge
-    for (let key in dataset) {
-        knowledge[key] = dataset[key];
-    }
-    try {
-        const s = localStorage.getItem('robKnowledge');
-        if (s) {
-            const userKnowledge = JSON.parse(s);
-            for (let key in userKnowledge) {
-                knowledge[key] = userKnowledge[key];
-            }
-        }
-    } catch(e) {}
+    for (let key in dataset) { knowledge[key] = dataset[key]; }
 
+    function loadKnowledge() {
+        try {
+            const s = localStorage.getItem('auraKnowledge');
+            if (s) {
+                const u = JSON.parse(s);
+                for (let key in u) {
+                    knowledge[key] = u[key];
+                }
+            }
+        } catch(e) {}
+    }
     function saveKnowledge() {
-        const userKnowledge = {};
+        const u = {};
         for (let key in knowledge) {
             if (!dataset[key]) {
-                userKnowledge[key] = knowledge[key];
+                u[key] = knowledge[key];
             }
         }
-        localStorage.setItem('robKnowledge', JSON.stringify(userKnowledge));
-        document.getElementById('memoryCount').textContent = Object.keys(userKnowledge).length;
+        localStorage.setItem('auraKnowledge', JSON.stringify(u));
     }
-    saveKnowledge();
+    loadKnowledge();
 
-    // Load conversation history from localStorage
-    try {
-        const h = localStorage.getItem('robChatHistory');
-        if (h) {
-            conversationHistory = JSON.parse(h);
-        }
-    } catch(e) {}
-
+    function loadHistory() {
+        try {
+            const h = localStorage.getItem('auraChatHistory');
+            if (h) {
+                conversationHistory = JSON.parse(h);
+            }
+        } catch(e) {}
+    }
     function saveHistory() {
-        localStorage.setItem('robChatHistory', JSON.stringify(conversationHistory));
+        localStorage.setItem('auraChatHistory', JSON.stringify(conversationHistory));
     }
+    loadHistory();
 
     const chatBox = document.getElementById('chatBox');
     const userInput = document.getElementById('userInput');
     const sendBtn = document.getElementById('sendBtn');
-    const modelSelect = document.getElementById('modelSelect');
-    const modelBadge = document.getElementById('activeModelBadge');
 
-    function appendMessage(role, text, source = null) {
+    function appendMessage(role, text) {
         const div = document.createElement('div');
         div.className = 'message ' + role;
         const avatar = document.createElement('div');
         avatar.className = 'avatar';
-        avatar.textContent = role === 'user' ? '👤' : '🤖';
+        avatar.textContent = role === 'user' ? 'U' : 'A';
         const bubble = document.createElement('div');
         bubble.className = 'bubble';
         bubble.textContent = text;
-        if (source) {
-            const badge = document.createElement('span');
-            badge.className = 'source-badge source-' + source;
-            badge.textContent = source;
-            bubble.appendChild(badge);
-        }
         div.appendChild(avatar);
         div.appendChild(bubble);
         chatBox.appendChild(div);
@@ -222,22 +174,30 @@
         chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    async function callServer(endpoint, query, model) {
+    // ---- DuckDuckGo API (free, no key) ----
+    async function getDDG(query) {
         try {
-            const url = `${SERVER_URL}/?${endpoint}=${encodeURIComponent(query)}&model=${encodeURIComponent(model)}&history=${encodeURIComponent(JSON.stringify(conversationHistory))}`;
+            const url = 'https://api.duckduckgo.com/?q=' + encodeURIComponent(query) + '&format=json';
             const resp = await fetch(url);
             const data = await resp.json();
-            return data;
+            if (data.AbstractText && data.AbstractText !== '') {
+                return data.AbstractText;
+            }
+            if (data.RelatedTopics && data.RelatedTopics.length > 0 && data.RelatedTopics[0].Text) {
+                return data.RelatedTopics[0].Text.replace(/<[^>]+>/g, '');
+            }
+            return null;
         } catch(e) {
-            return { error: e.message };
+            return null;
         }
     }
 
-    async function getRobReply(userInput) {
-        const lower = userInput.toLowerCase();
-        const raw = userInput.trim();
+    // ---- Aura's brain ----
+    async function getReply(input) {
+        const raw = input.trim();
+        const lower = raw.toLowerCase();
 
-        // ---- LEARN ----
+        // Learn
         const learnMatch = raw.match(/^(.+?)\s*means\s*(.+)$/i) || raw.match(/^(.+?)\s*=\s*(.+)$/i);
         if (learnMatch) {
             const word = learnMatch[1].trim().toLowerCase();
@@ -250,7 +210,7 @@
             return "I don't need to learn '" + word + "'.";
         }
 
-        // ---- DELETE ----
+        // Delete
         const delMatch = raw.match(/^(.+?)\s+is\s+wrong$/i) || raw.match(/^delete\s+(.+)$/i) || raw.match(/^remove\s+(.+)$/i);
         if (delMatch) {
             const word = delMatch[1].trim().toLowerCase();
@@ -263,35 +223,36 @@
             return "I don't know '" + word + "'.";
         }
 
-        // ---- KNOWLEDGE LOOKUP ----
+        // What is
         const whatMatch = raw.match(/^what\s+is\s+(.+)$/i);
         if (whatMatch) {
             const topic = whatMatch[1].trim().toLowerCase();
             if (knowledge[topic]) {
                 return topic + ' = ' + knowledge[topic];
             }
-            const result = await callServer('word', topic, modelSelect.value);
-            if (result && result.definition) {
-                knowledge[topic] = result.definition;
-                saveKnowledge();
-                return topic + ' = ' + result.definition;
-            }
         }
 
-        // ---- AI CHAT ----
-        const model = modelSelect.value;
-        const result = await callServer('chat', raw, model);
-        if (result && result.response) {
-            // Save to history
+        // Try DuckDuckGo for any question or search
+        const ddgReply = await getDDG(raw);
+        if (ddgReply) {
             conversationHistory.push({ role: 'user', content: raw });
-            conversationHistory.push({ role: 'assistant', content: result.response });
+            conversationHistory.push({ role: 'assistant', content: ddgReply });
             saveHistory();
-            // Show source if available
-            const source = result.source || model;
-            return { text: result.response, source: source };
+            return ddgReply;
         }
 
-        return { text: "Sorry, the server isn't responding. Make sure it's running!" };
+        // Generic fallback
+        const fallbacks = [
+            "I don't know the answer to that. Can you ask something else?",
+            "Hmm, I'm not sure. What do you think?",
+            "That's a good question. I don't have an answer right now.",
+            "I'm not sure about that. Tell me more."
+        ];
+        const reply = fallbacks[Math.floor(Math.random() * fallbacks.length)];
+        conversationHistory.push({ role: 'user', content: raw });
+        conversationHistory.push({ role: 'assistant', content: reply });
+        saveHistory();
+        return reply;
     }
 
     async function sendMessage() {
@@ -303,23 +264,12 @@
 
         appendMessage('user', text);
 
-        const typingDiv = appendMessage('rob', '🤔 Thinking...', true);
+        const typingDiv = appendMessage('aura', '🤔 Thinking...');
+        typingDiv.classList.add('typing');
 
         try {
-            const reply = await getRobReply(text);
-            if (typeof reply === 'string') {
-                updateTyping(typingDiv, reply);
-            } else {
-                updateTyping(typingDiv, reply.text);
-                // Add source badge to the last message
-                if (reply.source) {
-                    const bubble = typingDiv.querySelector('.bubble');
-                    const badge = document.createElement('span');
-                    badge.className = 'source-badge source-' + reply.source;
-                    badge.textContent = reply.source;
-                    bubble.appendChild(badge);
-                }
-            }
+            const reply = await getReply(text);
+            updateTyping(typingDiv, reply);
             typingDiv.classList.remove('typing');
         } catch(e) {
             updateTyping(typingDiv, 'Error: ' + e.message);
@@ -331,22 +281,9 @@
         userInput.focus();
     }
 
-    modelSelect.addEventListener('change', () => {
-        const labels = {
-            'ollama': 'Rob\'s Brain',
-            'huggingface': 'The Thinker',
-            'duckduckgo': 'The Searcher',
-            'auto': 'Auto Pilot'
-        };
-        modelBadge.textContent = 'Current: ' + (labels[modelSelect.value] || modelSelect.value);
-    });
-
     sendBtn.addEventListener('click', sendMessage);
     userInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendMessage(); });
     userInput.focus();
-
-    // Update badge on load
-    modelSelect.dispatchEvent(new Event('change'));
 </script>
 </body>
 </html>
