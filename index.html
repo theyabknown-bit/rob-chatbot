@@ -43,63 +43,18 @@
             text-decoration: none;
             box-shadow: 0 0 30px rgba(106, 140, 255, 0.3);
             transition: transform 0.2s, box-shadow 0.2s;
-            cursor: pointer;
-            border: none;
         }
         .btn:hover {
             transform: scale(1.05);
             box-shadow: 0 0 50px rgba(106, 140, 255, 0.5);
         }
-        .loading { color: #6a72a0; font-size: 18px; margin-top: 20px; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="logo">Aura</div>
         <div class="sub">Your AI companion</div>
-        <button class="btn" id="enterBtn">Enter Aura</button>
-        <div class="loading" id="loadingMsg">Fetching the latest tunnel...</div>
+        <a href="https://tiny-hill-ivim8.trybore.com/?page=aura" class="btn">Enter Aura</a>
     </div>
-    <script>
-        // ---- Gist URL (raw) ----
-        const GIST_URL = 'https://gist.githubusercontent.com/theyabknown-bit/6b6904a28a45cd06ddff08714119860e/raw/063de0fdd03adf7ba0082aeecf976c4540e711ac/gistfile1.txt';
-
-        let tunnelUrl = null;
-
-        async function fetchTunnel() {
-            try {
-                const resp = await fetch(GIST_URL);
-                const data = await resp.json();
-                if (data && data.tunnel) {
-                    tunnelUrl = data.tunnel;
-                    document.getElementById('loadingMsg').textContent = '✅ Ready! Click "Enter Aura" to chat.';
-                    document.getElementById('enterBtn').disabled = false;
-                    document.getElementById('enterBtn').style.opacity = 1;
-                    return;
-                }
-            } catch (e) {
-                console.warn('Gist fetch failed, using fallback.', e);
-            }
-            // Fallback: use the current bore URL if Gist fails
-            tunnelUrl = 'https://curly-cloud-j6y3j.trybore.com';
-            document.getElementById('loadingMsg').textContent = '⚠️ Using fallback tunnel (may be outdated).';
-            document.getElementById('enterBtn').disabled = false;
-            document.getElementById('enterBtn').style.opacity = 1;
-        }
-
-        document.getElementById('enterBtn').addEventListener('click', () => {
-            if (tunnelUrl) {
-                window.location.href = tunnelUrl + '/?page=aura';
-            } else {
-                alert('Tunnel URL not yet loaded. Please wait.');
-            }
-        });
-
-        // Disable button until loaded
-        document.getElementById('enterBtn').disabled = true;
-        document.getElementById('enterBtn').style.opacity = 0.5;
-
-        fetchTunnel();
-    </script>
 </body>
 </html>
