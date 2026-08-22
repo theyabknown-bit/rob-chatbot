@@ -35,6 +35,12 @@
             color: #6a72a0;
             margin-bottom: 40px;
         }
+        .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+        }
         .btn {
             display: inline-block;
             padding: 16px 48px;
@@ -53,21 +59,44 @@
             transform: scale(1.05);
             box-shadow: 0 0 50px rgba(106, 140, 255, 0.5);
         }
+        .btn-secondary {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            box-shadow: 0 0 30px rgba(255, 107, 107, 0.3);
+        }
+        .btn-secondary:hover {
+            box-shadow: 0 0 50px rgba(255, 107, 107, 0.5);
+        }
         .loading { color: #6a72a0; font-size: 18px; margin-top: 20px; }
+        .note {
+            font-size: 14px;
+            color: #4a507a;
+            margin-top: 20px;
+        }
+        .note span { color: #6a72a0; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="logo">Aura</div>
         <div class="sub">Your AI companion</div>
-        <button class="btn" id="enterBtn">Enter Aura</button>
-        <div class="loading" id="loadingMsg">Fetching the latest tunnel...</div>
+        <div class="btn-group">
+            <button class="btn" id="fastBtn">🚀 Aura (Fast)</button>
+            <a href="https://aura-r0y6.onrender.com/?page=aura" class="btn btn-secondary">🔄 Aura (Backup)</a>
+        </div>
+        <div class="loading" id="loadingMsg">Checking for fast tunnel...</div>
+        <div class="note">⚡ Fast = your PC (low latency) | 🔄 Backup = cloud (always online)</div>
     </div>
     <script>
-        // ---- SHA‑free Gist URL (always fetches the latest version) ----
+        // ---- SHA‑free Gist URL ----
         const GIST_URL = 'https://gist.githubusercontent.com/theyabknown-bit/6b6904a28a45cd06ddff08714119860e/raw/gistfile1.txt?t=' + Date.now();
+        const BACKUP_URL = 'https://aura-r0y6.onrender.com/?page=aura';
 
         let tunnelUrl = null;
+        let fallbackTimer = null;
+
+        function goToBackup() {
+            window.location.href = BACKUP_URL;
+        }
 
         async function fetchTunnel() {
             try {
@@ -75,31 +104,66 @@
                 const data = await resp.json();
                 if (data && data.tunnel) {
                     tunnelUrl = data.tunnel;
-                    document.getElementById('loadingMsg').textContent = '✅ Ready! Click "Enter Aura" to chat.';
-                    document.getElementById('enterBtn').disabled = false;
-                    document.getElementById('enterBtn').style.opacity = 1;
+                    document.getElementById('loadingMsg').textContent = '✅ Fast tunnel ready! Click the button.';
+                    document.getElementById('fastBtn').disabled = false;
+                    document.getElementById('fastBtn').style.opacity = 1;
                     return;
                 }
             } catch (e) {
                 console.warn('Gist fetch failed, using fallback.', e);
             }
-            // Fallback to the current live tunnel
+            // Fallback to hardcoded URL if Gist fails
             tunnelUrl = 'https://super-sea-07vkt.trybore.com';
             document.getElementById('loadingMsg').textContent = '⚠️ Using fallback tunnel (may be outdated).';
-            document.getElementById('enterBtn').disabled = false;
-            document.getElementById('enterBtn').style.opacity = 1;
+            document.getElementById('fastBtn').disabled = false;
+            document.getElementById('fastBtn').style.opacity = 1;
         }
 
-        document.getElementById('enterBtn').addEventListener('click', () => {
-            if (tunnelUrl) {
-                window.location.href = tunnelUrl + '/?page=aura';
-            } else {
+        function tryFast() {
+            if (!tunnelUrl) {
                 alert('Tunnel URL not yet loaded. Please wait.');
+                return;
             }
-        });
 
-        document.getElementById('enterBtn').disabled = true;
-        document.getElementById('enterBtn').style.opacity = 0.5;
+            // Show that we're trying
+            document.getElementById('loadingMsg').textContent = '⏳ Connecting to fast tunnel...';
+
+            // Try to fetch the tunnel URL with a short timeout
+            // If it doesn't respond in 3 seconds, go to backup
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+            fetch(tunnelUrl + '/?page=aura', {
+                method: 'HEAD',
+                mode: 'no-cors', // we just want to see if it responds
+                signal: controller.signal
+            })
+            .then(() => {
+                // If we get here, it's reachable
+                clearTimeout(timeoutId);
+                window.location.href = tunnelUrl + '/?page=aura';
+            })
+            .catch(() => {
+                // If it fails or times out, go to backup
+                clearTimeout(timeoutId);
+                document.getElementById('loadingMsg').textContent = '⚠️ Fast tunnel unavailable. Redirecting to backup...';
+                setTimeout(goToBackup, 1000);
+            });
+
+            // Also set a safety timeout: if we don't get a response in 4 seconds, force backup
+            setTimeout(() => {
+                if (!window.location.href.includes('aura-r0y6')) {
+                    // Only if we haven't already redirected
+                    document.getElementById('loadingMsg').textContent = '⏳ Fast tunnel timeout. Redirecting to backup...';
+                    setTimeout(goToBackup, 500);
+                }
+            }, 4000);
+        }
+
+        document.getElementById('fastBtn').addEventListener('click', tryFast);
+
+        document.getElementById('fastBtn').disabled = true;
+        document.getElementById('fastBtn').style.opacity = 0.5;
 
         fetchTunnel();
     </script>
