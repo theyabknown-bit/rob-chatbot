@@ -503,9 +503,15 @@ const server = http.createServer(async (req, res) => {
         }
 
         if (!aiResponse) {
-            aiResponse = "I'm having trouble connecting to my AI brain. Please check if Ollama is running.";
-        }
-
+    const fallbacks = [
+        "Hey! I'm running on backup mode – try again in a moment.",
+        "Sorry, my AI brain is taking a nap. Ask me again?",
+        "I'm here! Just a bit slow today.",
+        "Hey there! What's up?",
+        "How can I help you? 😊"
+    ];
+    aiResponse = fallbacks[Math.floor(Math.random() * fallbacks.length)];
+}
         logConversation(userMessage, aiResponse, ip, username);
         res.end(JSON.stringify({ response: aiResponse, source: used }));
         return;
