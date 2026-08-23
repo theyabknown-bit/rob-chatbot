@@ -1,4 +1,4 @@
-const http = require('http');
+﻿const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const url = require('url');
@@ -15,6 +15,11 @@ const SECRET_KEY = 'your-super-secret-key-change-me-12345';
 
 const VALID_CODES = ['theyabbro', 'free'];
 const imageCooldown = new Map();
+
+// ---- Daily limits per user ----
+const MAX_MESSAGES_PER_DAY = 50;
+const MAX_NEW_CHATS_PER_DAY = 5;
+const RESET_HOUR = 1; // 1 AM server time
 
 function isImageAllowed(ip, code, activated) {
     if (code && activated) {
@@ -56,14 +61,14 @@ function readUsers() {
             const data = fs.readFileSync(USERS_FILE, 'utf8');
             if (data.trim()) return JSON.parse(data);
         }
-    } catch (e) { console.log('?? Users file read error:', e.message); }
+    } catch (e) { console.log('⚠️ Users file read error:', e.message); }
     return [];
 }
 
 function writeUsers(users) {
     try {
         fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf8');
-    } catch (e) { console.log('?? Users file write error:', e.message); }
+    } catch (e) { console.log('⚠️ Users file write error:', e.message); }
 }
 
 function generateToken(username) {
@@ -84,6 +89,37 @@ function verifyToken(token) {
     } catch (e) { return null; }
 }
 
+// ---- Helper: get user data (or create) ----
+function getUser(username) {
+    let users = readUsers();
+    let user = users.find(u => u.username === username);
+    if (!user) return null;
+    // Initialize daily fields if missing
+    const now = new Date();
+    const currentDate = now.toISOString().slice(0,10);
+    if (!user.dailyMessageCount) user.dailyMessageCount = 0;
+    if (!user.dailyNewChatCount) user.dailyNewChatCount = 0;
+    if (!user.lastDate) user.lastDate = currentDate;
+    // Reset if new day
+    if (user.lastDate !== currentDate) {
+        user.dailyMessageCount = 0;
+        user.dailyNewChatCount = 0;
+        user.lastDate = currentDate;
+    }
+    return { users, user, index: users.indexOf(user) };
+}
+
+function getResetTimeString() {
+    const now = new Date();
+    const nextReset = new Date(now);
+    nextReset.setDate(now.getDate() + 1);
+    nextReset.setHours(RESET_HOUR, 0, 0, 0);
+    const diff = nextReset - now;
+    const hours = Math.floor(diff / 3600000);
+    const mins = Math.floor((diff % 3600000) / 60000);
+    return `${hours}h ${mins}m`;
+}
+
 function logConversation(userMessage, auraReply, ip, username) {
     const entry = {
         timestamp: new Date().toISOString(),
@@ -100,7 +136,7 @@ function logConversation(userMessage, auraReply, ip, username) {
         }
         logs.push(entry);
         fs.writeFileSync(LOG_FILE, JSON.stringify(logs, null, 2), 'utf8');
-    } catch (e) { console.log('?? Log write error:', e.message); }
+    } catch (e) { console.log('⚠️ Log write error:', e.message); }
 }
 
 function parseBody(req) {
@@ -150,7 +186,7 @@ function getPastMemories(ip, username, limit = 8) {
         });
         return memory;
     } catch (e) {
-        console.log('?? Could not read log for memory:', e.message);
+        console.log('⚠️ Could not read log for memory:', e.message);
         return "No past conversations available.";
     }
 }
@@ -201,7 +237,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && pathname === '/client-ping') {
         const body = await parseBody(req);
         const clientName = body.clientName || 'Anonymous';
-        console.log(`?? Client connected: ${clientName} (${ip}) - ${new Date().toISOString()}`);
+        console.log(`📡 Client connected: ${clientName} (${ip}) - ${new Date().toISOString()}`);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ status: 'ok' }));
         return;
@@ -215,14 +251,22 @@ const server = http.createServer(async (req, res) => {
             res.end(JSON.stringify({ success: false, error: 'Username and password required' }));
             return;
         }
-        const users = readUsers();
+        let users = readUsers();
         if (users.find(u => u.username === username)) {
             res.end(JSON.stringify({ success: false, error: 'Username already exists' }));
             return;
         }
         const salt = generateSalt();
         const hash = await hashPassword(password, salt);
-        users.push({ username, hash, salt });
+        const newUser = { 
+            username, 
+            hash, 
+            salt,
+            dailyMessageCount: 0,
+            dailyNewChatCount: 0,
+            lastDate: new Date().toISOString().slice(0,10)
+        };
+        users.push(newUser);
         writeUsers(users);
         res.end(JSON.stringify({ success: true, message: 'Account created' }));
         return;
@@ -236,7 +280,7 @@ const server = http.createServer(async (req, res) => {
             res.end(JSON.stringify({ success: false, error: 'Username and password required' }));
             return;
         }
-        const users = readUsers();
+        let users = readUsers();
         const user = users.find(u => u.username === username);
         if (!user) {
             res.end(JSON.stringify({ success: false, error: 'Invalid username or password' }));
@@ -266,6 +310,41 @@ const server = http.createServer(async (req, res) => {
         } else {
             res.end(JSON.stringify({ valid: false }));
         }
+        return;
+    }
+
+    // ---- New Chat (check limit) ----
+    if (req.method === 'POST' && pathname === '/new-chat') {
+        const body = await parseBody(req);
+        const token = body.token;
+        if (!token) {
+            res.end(JSON.stringify({ success: false, error: 'Not logged in' }));
+            return;
+        }
+        const username = verifyToken(token);
+        if (!username) {
+            res.end(JSON.stringify({ success: false, error: 'Invalid token' }));
+            return;
+        }
+        const { users, user, index } = getUser(username);
+        if (!user) {
+            res.end(JSON.stringify({ success: false, error: 'User not found' }));
+            return;
+        }
+        // Check new chat limit
+        if (user.dailyNewChatCount >= MAX_NEW_CHATS_PER_DAY) {
+            const wait = getResetTimeString();
+            res.end(JSON.stringify({ 
+                success: false, 
+                error: `You've reached the limit of ${MAX_NEW_CHATS_PER_DAY} new chats per day. Try again in ${wait}.`
+            }));
+            return;
+        }
+        // Increment count
+        user.dailyNewChatCount += 1;
+        users[index] = user;
+        writeUsers(users);
+        res.end(JSON.stringify({ success: true }));
         return;
     }
 
@@ -338,6 +417,20 @@ const server = http.createServer(async (req, res) => {
         const historyArray = history || [];
         const imageBase64 = image || null;
 
+        // ---- Daily message limit ----
+        const { users, user, index } = getUser(username);
+        if (!user) {
+            res.end(JSON.stringify({ error: 'User not found' }));
+            return;
+        }
+        if (user.dailyMessageCount >= MAX_MESSAGES_PER_DAY) {
+            const wait = getResetTimeString();
+            const reply = `You've reached the daily message limit (${MAX_MESSAGES_PER_DAY} messages). Please try again in ${wait} (resets at 1 AM).`;
+            logConversation(userMessage, reply, ip, username);
+            res.end(JSON.stringify({ response: reply, source: 'limit' }));
+            return;
+        }
+
         let finalUserMessage = userMessage;
 
         if (imageBase64) {
@@ -361,7 +454,7 @@ const server = http.createServer(async (req, res) => {
             }
 
             try {
-                console.log('?? Describing image...');
+                console.log('📤 Describing image...');
                 const payload = {
                     model: 'llava',
                     prompt: 'Describe this image in one sentence.',
@@ -377,11 +470,11 @@ const server = http.createServer(async (req, res) => {
                 if (ollamaRes.ok) {
                     const data = await ollamaRes.json();
                     const description = data.response || 'an image';
-                    console.log('? Image described:', description);
+                    console.log('✅ Image described:', description);
                     finalUserMessage = userMessage + ' (Image description: ' + description + ')';
                 } else {
                     const errText = await ollamaRes.text();
-                    console.log('? Image description error:', errText);
+                    console.log('❌ Image description error:', errText);
                 }
             } catch (e) {
                 console.log('Image fetch error:', e.message);
@@ -398,24 +491,37 @@ const server = http.createServer(async (req, res) => {
         const greetings = ['hi', 'hello', 'hey', 'yo', 'sup', 'howdy', 'good morning', 'good evening'];
         if (greetings.includes(lower) || greetings.some(g => lower === g)) {
             const reply = ["Hey! What's up?", "Hello! How can I help?", "Hi there! What's on your mind?", "Yo! What's going on?", "Hey! Good to see you!"][Math.floor(Math.random() * 5)];
+            // Increment message count even for greetings
+            user.dailyMessageCount += 1;
+            users[index] = user;
+            writeUsers(users);
             logConversation(userMessage, reply, ip, username);
             res.end(JSON.stringify({ response: reply }));
             return;
         }
         if (lower.includes('good night')) {
-            const reply = "Good night! Sleep well. ??";
+            const reply = "Good night! Sleep well. 🌙";
+            user.dailyMessageCount += 1;
+            users[index] = user;
+            writeUsers(users);
             logConversation(userMessage, reply, ip, username);
             res.end(JSON.stringify({ response: reply }));
             return;
         }
         if (lower.includes('thank you') || lower === 'thanks' || lower === 'ty') {
-            const reply = "You're welcome! ??";
+            const reply = "You're welcome! 😊";
+            user.dailyMessageCount += 1;
+            users[index] = user;
+            writeUsers(users);
             logConversation(userMessage, reply, ip, username);
             res.end(JSON.stringify({ response: reply }));
             return;
         }
         if (lower.includes('bye') || lower === 'goodbye' || lower === 'cya') {
-            const reply = "Bye! Take care! ??";
+            const reply = "Bye! Take care! 👋";
+            user.dailyMessageCount += 1;
+            users[index] = user;
+            writeUsers(users);
             logConversation(userMessage, reply, ip, username);
             res.end(JSON.stringify({ response: reply }));
             return;
@@ -430,13 +536,20 @@ const server = http.createServer(async (req, res) => {
             if (command) {
                 const cmd = `openclaw ${command}`;
                 exec(cmd, { timeout: 30000 }, (error, stdout, stderr) => {
-                    const result = error ? `? OpenClaw error: ${error.message}\n${stderr}` : (stdout.trim() || stderr.trim() || "OpenClaw didn't return any output.");
+                    const result = error ? `❌ OpenClaw error: ${error.message}\n${stderr}` : (stdout.trim() || stderr.trim() || "OpenClaw didn't return any output.");
+                    // Increment message count for command
+                    user.dailyMessageCount += 1;
+                    users[index] = user;
+                    writeUsers(users);
                     logConversation(userMessage, result, ip, username);
                     res.end(JSON.stringify({ response: result, source: 'openclaw' }));
                 });
                 return;
             } else {
                 const reply = "Please provide a command after ! or /";
+                user.dailyMessageCount += 1;
+                users[index] = user;
+                writeUsers(users);
                 logConversation(userMessage, reply, ip, username);
                 res.end(JSON.stringify({ response: reply, source: 'openclaw' }));
                 return;
@@ -476,7 +589,7 @@ const server = http.createServer(async (req, res) => {
         // ---- Try Groq ----
         if (!aiResponse && process.env.GROQ_API_KEY) {
             try {
-                console.log('?? Trying Groq...');
+                console.log('🔄 Trying Groq...');
                 const groqMessages = [
                     { role: 'system', content: systemPrompt },
                     ...historyArray.map(m => ({ role: m.role, content: m.content })),
@@ -499,70 +612,83 @@ const server = http.createServer(async (req, res) => {
                     const data = await groqRes.json();
                     aiResponse = cleanResponse(data.choices[0].message.content);
                     used = 'groq';
-                    console.log('? Groq response received');
+                    console.log('✅ Groq response received');
                 } else {
                     const errText = await groqRes.text();
-                    console.log('? Groq error:', groqRes.status, errText);
+                    console.log('❌ Groq error:', groqRes.status, errText);
                 }
             } catch (e) {
-                console.log('? Groq exception:', e.message);
+                console.log('❌ Groq exception:', e.message);
             }
         }
 
-        // ---- Try Hugging Face ----
+        // ---- Try multiple Hugging Face models ----
+        const HF_MODELS = [
+            'microsoft/DialoGPT-large',
+            'google/flan-t5-large',
+            'microsoft/DialoGPT-medium'
+        ];
         if (!aiResponse) {
-            try {
-                console.log('?? Trying Hugging Face fallback...');
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 30000);
-                const headers = { 'Content-Type': 'application/json' };
-                if (process.env.HF_TOKEN) {
-                    headers['Authorization'] = 'Bearer ' + process.env.HF_TOKEN;
-                }
-                const hfRes = await fetch(HF_API, {
-                    method: 'POST',
-                    headers: headers,
-                    body: JSON.stringify({
-                        inputs: systemPrompt,
-                        parameters: { max_length: 220, temperature: 0.9, top_p: 0.95 }
-                    }),
-                    signal: controller.signal
-                });
-                clearTimeout(timeoutId);
-                if (hfRes.ok) {
-                    const hfData = await hfRes.json();
-                    console.log('? HF response received');
-                    let reply = hfData.generated_text || (Array.isArray(hfData) && hfData[0]?.generated_text);
-                    if (reply) {
-                        const lastAura = reply.lastIndexOf('Aura:');
-                        if (lastAura !== -1) reply = reply.substring(lastAura + 5).trim();
-                        aiResponse = cleanResponse(reply) || null;
-                        used = 'huggingface';
+            for (const model of HF_MODELS) {
+                try {
+                    console.log('🔄 Trying HF model: ' + model);
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 15000);
+                    const headers = { 'Content-Type': 'application/json' };
+                    if (process.env.HF_TOKEN) {
+                        headers['Authorization'] = 'Bearer ' + process.env.HF_TOKEN;
                     }
-                } else {
-                    const errText = await hfRes.text();
-                    console.log('? HF error:', hfRes.status, errText);
+                    const hfRes = await fetch('https://api-inference.huggingface.co/models/' + model, {
+                        method: 'POST',
+                        headers: headers,
+                        body: JSON.stringify({
+                            inputs: systemPrompt,
+                            parameters: { max_length: 220, temperature: 0.9, top_p: 0.95 }
+                        }),
+                        signal: controller.signal
+                    });
+                    clearTimeout(timeoutId);
+                    if (hfRes.ok) {
+                        const hfData = await hfRes.json();
+                        console.log('✅ HF response from ' + model);
+                        let reply = hfData.generated_text || (Array.isArray(hfData) && hfData[0]?.generated_text);
+                        if (reply) {
+                            const lastAura = reply.lastIndexOf('Aura:');
+                            if (lastAura !== -1) reply = reply.substring(lastAura + 5).trim();
+                            aiResponse = cleanResponse(reply) || null;
+                            used = 'huggingface';
+                            break;
+                        }
+                    } else {
+                        const errText = await hfRes.text();
+                        console.log('❌ HF error for ' + model + ': ' + hfRes.status + ' ' + errText);
+                    }
+                } catch (e) {
+                    console.log('❌ HF exception for ' + model + ': ' + e.message);
                 }
-            } catch (e) {
-                console.log('? HF exception:', e.message);
             }
         }
 
         // ---- Ultimate fallback ----
         if (!aiResponse) {
             const fallbacks = [
-                "Hey! I'm running on backup mode � try again in a moment.",
+                "Hey! I'm running on backup mode – try again in a moment.",
                 "Sorry, my AI brain is taking a nap. Ask me again?",
                 "I'm here! Just a bit slow today.",
                 "Hey there! What's up?",
-                "How can I help you? ??",
-                "Let's try that again � I'm listening!",
+                "How can I help you? 😊",
+                "Let's try that again – I'm listening!",
                 "Yep, I'm awake! What do you need?",
-                "I'm ready when you are! ??"
+                "I'm ready when you are! 🚀"
             ];
             aiResponse = fallbacks[Math.floor(Math.random() * fallbacks.length)];
             used = 'fallback';
         }
+
+        // ---- Increment message count after successful AI (or fallback) ----
+        user.dailyMessageCount += 1;
+        users[index] = user;
+        writeUsers(users);
 
         logConversation(userMessage, aiResponse, ip, username);
         res.end(JSON.stringify({ response: aiResponse, source: used }));
@@ -610,15 +736,14 @@ const server = http.createServer(async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
-    console.log('?? Aura server running on port ' + PORT);
-    console.log('?? Main page: http://localhost:3000');
-    console.log('?? Aura page: http://localhost:3000/?page=aura');
-    console.log('?? Logs are saved to: ' + LOG_FILE);
-    console.log('?? Users saved to: ' + USERS_FILE);
-    console.log('?? Images: described invisibly (1/h or unlimited with code)');
-    console.log('?? Voice: faster-whisper (offline)');
-    console.log('?? Authentication: enabled (login/register with token)');
-    console.log('?? Long-term memory: enabled (last 8 chats per user)');
+    console.log('🚀 Aura server running on port ' + PORT);
+    console.log('📄 Main page: http://localhost:3000');
+    console.log('🤖 Aura page: http://localhost:3000/?page=aura');
+    console.log('📝 Logs are saved to: ' + LOG_FILE);
+    console.log('👤 Users saved to: ' + USERS_FILE);
+    console.log('📷 Images: described invisibly (1/h or unlimited with code)');
+    console.log('🎤 Voice: faster-whisper (offline)');
+    console.log('🔐 Authentication: enabled (login/register with token)');
+    console.log('🧠 Long-term memory: enabled (last 8 chats per user)');
+    console.log(`📊 Daily limits: ${MAX_MESSAGES_PER_DAY} messages, ${MAX_NEW_CHATS_PER_DAY} new chats (reset at ${RESET_HOUR}:00)`);
 });
-
-

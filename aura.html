@@ -325,6 +325,26 @@
         return { id, title, messages: [], timestamp: Date.now() };
     }
 
+    async function createNewChat() {
+        // Check server limit first
+        try {
+            const res = await fetch('/new-chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token })
+            });
+            const data = await res.json();
+            if (!data.success) {
+                alert(data.error || 'Cannot create new chat right now.');
+                return false;
+            }
+            return true;
+        } catch (e) {
+            alert('Error checking new chat limit.');
+            return false;
+        }
+    }
+
     function saveCurrentSession() {
         if (!currentSessionId) return;
         const session = sessions.find(s => s.id === currentSessionId);
@@ -345,8 +365,21 @@
         if (!confirm('Delete this chat?')) return;
         sessions = sessions.filter(s => s.id !== id);
         if (sessions.length === 0) {
-            const session = createSession('New Chat');
-            sessions.push(session);
+            // Attempt to create a new one via server limit
+            createNewChat().then(ok => {
+                if (ok) {
+                    const session = createSession('New Chat');
+                    sessions.push(session);
+                    currentSessionId = session.id;
+                    currentMessages = [];
+                    conversationHistory = [];
+                    userInput.placeholder = 'Talk to Aura...';
+                    renderMessages();
+                    renderChatList();
+                    saveSessions();
+                }
+            });
+            return;
         }
         if (currentSessionId === id) {
             const latest = sessions[0];
@@ -581,7 +614,9 @@
         imageInput.value = '';
     });
 
-    newChatBtn.addEventListener('click', () => {
+    newChatBtn.addEventListener('click', async () => {
+        const ok = await createNewChat();
+        if (!ok) return;
         saveCurrentSession();
         const session = createSession('New Chat');
         sessions.push(session);
@@ -608,11 +643,22 @@
     function initChat() {
         loadSessions();
         if (sessions.length === 0) {
-            const session = createSession('New Chat');
-            sessions.push(session);
-            currentSessionId = session.id;
-            currentMessages = [];
-            conversationHistory = [];
+            // Try to create a new chat, but if limit reached, we'll show message
+            createNewChat().then(ok => {
+                if (ok) {
+                    const session = createSession('New Chat');
+                    sessions.push(session);
+                    currentSessionId = session.id;
+                    currentMessages = [];
+                    conversationHistory = [];
+                    renderMessages();
+                    renderChatList();
+                    saveSessions();
+                } else {
+                    // If limit reached, show a message in the chat area
+                    messagesDiv.innerHTML = '<div class="msg aura">You have reached the limit for creating new chats today. Please try again after 1 AM.</div>';
+                }
+            });
         } else {
             const latest = sessions[0];
             currentSessionId = latest.id;
@@ -623,9 +669,9 @@
                 else if (msg.role === 'aura') conversationHistory.push({ role: 'assistant', content: msg.text });
             });
             userInput.placeholder = latest.title === 'New Chat' ? 'Talk to Aura...' : 'Continue chat...';
+            renderMessages();
+            renderChatList();
         }
-        renderMessages();
-        renderChatList();
         updateCodeStatus();
 
         sendBtn.addEventListener('click', sendMessage);
