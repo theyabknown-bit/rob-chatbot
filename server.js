@@ -7,7 +7,7 @@ const { exec } = require('child_process');
 const crypto = require('crypto');
 
 const OLLAMA_URL = 'http://127.0.0.1:11434/api/generate';
-const HF_API = 'https://api-inference.huggingface.co/models/google/flan-t5-base';
+const HF_API = 'https://api-inference.huggingface.co/models/microsoft/DialoGPT-large';
 const LOG_FILE = 'F:\\chat_log.json';
 const USERS_FILE = 'F:\\users.json';
 const SECRET_KEY = 'your-super-secret-key-change-me-12345';
