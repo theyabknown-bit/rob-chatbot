@@ -2,579 +2,465 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
-    <title>Aura</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aura – AI Chat</title>
     <style>
-        * { margin:0; padding:0; box-sizing:border-box; }
-        body { font-family:'Segoe UI',Tahoma,sans-serif; background:#0b0d15; color:#e0e0e0; height:100vh; display:flex; padding:0; overflow:hidden; }
-        #sidebar {
-            width: 260px;
-            background:#141824;
-            border-right:1px solid #2a2f45;
-            display:flex;
-            flex-direction:column;
-            flex-shrink:0;
-            overflow:hidden;
-            transition:width 0.3s ease;
-            z-index:10;
+        /* Global reset & dark theme */
+        * { margin:0; padding:0; box-sizing:border-box; font-family: 'Segoe UI', Tahoma, sans-serif; }
+        body { background:#0b0d15; color:#e0e0e0; height:100vh; overflow:hidden; }
+        /* Login overlay */
+        #loginOverlay {
+            position:fixed; top:0; left:0; width:100%; height:100%;
+            background:rgba(0,0,0,0.85); display:flex; align-items:center; justify-content:center;
+            z-index:1000; backdrop-filter:blur(4px);
         }
-        #sidebar.collapsed { width:0; border-right:none; }
-        #sidebar .header {
-            padding:16px 16px 8px;
-            border-bottom:1px solid #2a2f45;
-            display:flex;
-            justify-content:space-between;
-            align-items:center;
-            flex-shrink:0;
+        #loginOverlay.hidden { display:none; }
+        .login-box {
+            background:#1e1f2e; padding:40px; border-radius:20px; width:100%; max-width:400px;
+            box-shadow:0 0 40px rgba(106,140,255,0.15);
+            border:1px solid #2a2b3d;
         }
-        #sidebar .header h2 { font-size:18px; font-weight:600; color:#b7bde0; }
-        #sidebar .header button {
-            background:#2a3050;
-            border:none;
-            border-radius:30px;
-            padding:4px 14px;
-            color:#d0d4e8;
-            cursor:pointer;
-            font-size:13px;
-            border:1px solid #3a4060;
+        .login-box h2 { text-align:center; margin-bottom:8px; font-weight:300; letter-spacing:1px; }
+        .login-box .sub { text-align:center; color:#6a72a0; font-size:14px; margin-bottom:24px; }
+        .login-box input {
+            width:100%; padding:12px 16px; margin-bottom:16px; background:#12131c; border:1px solid #2a2b3d;
+            border-radius:10px; color:#e0e0e0; font-size:16px; outline:none; transition:border 0.2s;
         }
-        #sidebar .header button:hover { background:#3a4060; }
-        #sidebar .chat-list {
-            flex:1;
-            overflow-y:auto;
-            padding:8px 12px;
+        .login-box input:focus { border-color:#6a8cff; }
+        .login-box .btn {
+            width:100%; padding:12px; border:none; border-radius:10px; font-size:16px; font-weight:600;
+            cursor:pointer; transition:0.2s; margin-bottom:10px;
         }
-        #sidebar .chat-list .chat-item {
-            padding:8px 12px;
-            border-radius:12px;
-            margin-bottom:4px;
-            cursor:pointer;
-            display:flex;
-            justify-content:space-between;
-            align-items:center;
-            transition:background 0.15s;
-            border:1px solid transparent;
-        }
-        #sidebar .chat-list .chat-item:hover { background:#1e2438; }
-        #sidebar .chat-list .chat-item.active { background:#2a3050; border-color:#4a507a; }
-        #sidebar .chat-list .chat-item .title {
-            font-size:14px;
-            white-space:nowrap;
-            overflow:hidden;
-            text-overflow:ellipsis;
-            max-width:150px;
-        }
-        #sidebar .chat-list .chat-item .delete-btn {
-            background:transparent;
-            border:none;
-            color:#5a6080;
-            cursor:pointer;
-            font-size:14px;
-            padding:0 4px;
-            opacity:0.4;
-            transition:opacity 0.15s;
-        }
-        #sidebar .chat-list .chat-item .delete-btn:hover { opacity:1; color:#f5a3a3; }
-        #main {
-            flex:1;
-            display:flex;
-            flex-direction:column;
-            padding:16px 20px;
-            overflow:hidden;
-            min-width:0;
-        }
-        .header {
-            display:flex;
-            justify-content:space-between;
-            align-items:center;
-            margin-bottom:12px;
-            border-bottom:1px solid #2a2f45;
-            padding-bottom:10px;
-            flex-shrink:0;
-        }
-        .header .logo {
-            display:flex;
-            align-items:center;
-            gap:12px;
-        }
-        .header .logo .avatar {
-            width:44px;
-            height:44px;
-            border-radius:50%;
-            background:linear-gradient(135deg,#a78bfa,#6a8cff);
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            font-weight:900;
-            font-size:22px;
-            color:#fff;
-            box-shadow:0 0 20px rgba(167,139,250,0.4);
-            animation:pulse 2s infinite ease-in-out;
-            user-select:none;
-        }
-        @keyframes pulse { 0% { box-shadow:0 0 20px rgba(167,139,250,0.4); } 50% { box-shadow:0 0 40px rgba(167,139,250,0.8); } 100% { box-shadow:0 0 20px rgba(167,139,250,0.4); } }
-        .header .logo .name { font-size:22px; font-weight:700; background:linear-gradient(135deg,#a78bfa,#6a8cff); -webkit-background-clip:text; -webkit-text-fill-color:transparent; letter-spacing:-0.5px; }
-        .header .right {
-            display:flex;
-            align-items:center;
-            gap:12px;
-        }
-        .header .right .toggle-sidebar {
-            background:transparent;
-            border:none;
-            color:#6a72a0;
-            font-size:24px;
-            cursor:pointer;
-            padding:4px 8px;
-            border-radius:8px;
-            transition:background 0.15s;
-        }
-        .header .right .toggle-sidebar:hover { background:#1e2438; }
-        .chat-box {
-            background:#0f1322;
-            border-radius:16px;
-            padding:12px;
-            flex:1;
-            overflow-y:auto;
-            margin-bottom:12px;
-            border:1px solid #1e2438;
-            min-height:200px;
-        }
-        .chat-box::-webkit-scrollbar { width:5px; }
-        .chat-box::-webkit-scrollbar-track { background:#0f1322; }
-        .chat-box::-webkit-scrollbar-thumb { background:#2a2f45; border-radius:10px; }
-        .message {
-            margin-bottom:10px;
-            display:flex;
-            align-items:flex-start;
-            gap:8px;
-        }
-        .message.user { flex-direction:row-reverse; }
-        .message .avatar {
-            width:30px;
-            height:30px;
-            border-radius:50%;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            font-size:14px;
-            font-weight:700;
-            flex-shrink:0;
-        }
-        .message.aura .avatar { background:linear-gradient(135deg,#a78bfa,#6a8cff); color:#fff; box-shadow:0 0 10px rgba(167,139,250,0.3); }
-        .message.user .avatar { background:#2a3050; color:#d0d4e8; }
-        .message .bubble {
-            max-width:80%;
-            padding:8px 14px;
-            border-radius:16px;
-            font-size:15px;
-            line-height:1.5;
-            background:#1a1f33;
-            border:1px solid #262b44;
-            word-wrap:break-word;
-        }
-        .message.user .bubble { background:#2a3050; border-color:#3a4060; }
-        .message.typing .bubble { color:#6a72a0; font-style:italic; }
-        .message.system .bubble { background:#2a1f1f; border-color:#5a3a3a; color:#f5a3a3; text-align:center; }
-        .input-area {
-            display:flex;
-            gap:10px;
-            flex-shrink:0;
-        }
-        .input-area input {
-            flex:1;
-            background:#0f1322;
-            border:1px solid #1e2438;
-            border-radius:30px;
-            padding:12px 16px;
-            color:#d0d4e8;
-            font-size:16px;
-            outline:none;
-            min-height:48px;
-        }
-        .input-area input:focus { border-color:#4a507a; }
-        .input-area input::placeholder { color:#5a6080; }
-        .input-area button {
-            background:#2a3050;
-            border:none;
-            border-radius:30px;
-            padding:12px 24px;
-            color:#d0d4e8;
-            font-size:16px;
-            cursor:pointer;
-            border:1px solid #3a4060;
-            transition:0.2s;
-            min-height:48px;
-            white-space:nowrap;
-            flex-shrink:0;
-        }
-        .input-area button:hover { background:#3a4060; }
-        .input-area button:disabled { opacity:0.5; cursor:not-allowed; }
-        @media (max-width:600px) {
-            #sidebar { width:200px; }
-            #sidebar .chat-list .chat-item .title { max-width:110px; }
-            .header .logo .name { font-size:18px; }
-            .input-area input { font-size:14px; padding:10px 14px; }
-            .input-area button { font-size:14px; padding:10px 16px; }
-            .message .bubble { font-size:14px; padding:6px 12px; }
-        }
-        @media (max-width:480px) {
-            #sidebar { width:180px; }
-            .header .right .toggle-sidebar { font-size:20px; }
-        }
+        .btn-primary { background:linear-gradient(135deg, #6a8cff, #a78bfa); color:#fff; }
+        .btn-primary:hover { transform:scale(1.02); box-shadow:0 0 20px rgba(106,140,255,0.3); }
+        .btn-secondary { background:#2a2b3d; color:#c0c0d0; }
+        .btn-secondary:hover { background:#3a3b4d; }
+        .login-error { color:#ff6b6b; font-size:14px; text-align:center; margin-top:8px; min-height:20px; }
+        .login-switch { text-align:center; margin-top:12px; font-size:14px; color:#6a72a0; cursor:pointer; }
+        .login-switch span { color:#6a8cff; text-decoration:underline; }
+        /* Chat app (hidden initially) */
+        #chatApp { display:flex; height:100vh; width:100%; }
+        #chatApp.hidden { display:none; }
+        /* Sidebar */
+        #sidebar { width:260px; background:#14151f; border-right:1px solid #1f2030; padding:16px; display:flex; flex-direction:column; flex-shrink:0; }
+        #sidebar .brand { font-size:24px; font-weight:700; background:linear-gradient(135deg,#00e5ff,#ff33cc); -webkit-background-clip:text; -webkit-text-fill-color:transparent; margin-bottom:16px; }
+        #sidebar .user-info { color:#6a72a0; font-size:14px; margin-bottom:12px; border-bottom:1px solid #1f2030; padding-bottom:12px; }
+        #sidebar .user-info .logout { color:#ff6b6b; cursor:pointer; float:right; font-weight:600; }
+        #sidebar .user-info .logout:hover { text-decoration:underline; }
+        #newChatBtn { background:#6a8cff; border:none; color:#fff; padding:10px; border-radius:10px; font-weight:600; cursor:pointer; margin-bottom:16px; transition:0.2s; }
+        #newChatBtn:hover { background:#7a9cff; transform:scale(1.02); }
+        #chatList { flex:1; overflow-y:auto; list-style:none; }
+        #chatList li { padding:10px 12px; border-radius:8px; margin-bottom:4px; cursor:pointer; transition:0.2s; color:#c0c0d0; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        #chatList li:hover { background:#1e1f2e; }
+        #chatList li.active { background:#2a2b3d; color:#fff; font-weight:500; }
+        /* Main chat area */
+        #main { flex:1; display:flex; flex-direction:column; background:#0b0d15; min-width:0; }
+        #messages { flex:1; overflow-y:auto; padding:20px; display:flex; flex-direction:column; gap:12px; }
+        .msg { max-width:80%; padding:12px 18px; border-radius:18px; line-height:1.5; word-wrap:break-word; animation:fadeIn 0.3s; }
+        .msg.user { align-self:flex-end; background:#2a2b3d; border-bottom-right-radius:4px; }
+        .msg.aura { align-self:flex-start; background:#1e1f2e; border-bottom-left-radius:4px; border:1px solid #2a2b3d; }
+        .msg .time { font-size:11px; color:#6a72a0; margin-top:4px; text-align:right; }
+        .typing { align-self:flex-start; background:#1e1f2e; padding:12px 18px; border-radius:18px; border-bottom-left-radius:4px; border:1px solid #2a2b3d; color:#6a72a0; font-style:italic; animation:typingPulse 1s infinite alternate; }
+        @keyframes typingPulse { 0% { opacity:0.5; } 100% { opacity:1; } }
+        @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+        /* Input area */
+        #inputArea { display:flex; gap:10px; padding:16px; background:#14151f; border-top:1px solid #1f2030; align-items:center; flex-wrap:wrap; }
+        #userInput { flex:1; padding:12px 16px; border-radius:24px; border:1px solid #2a2b3d; background:#0b0d15; color:#e0e0e0; font-size:16px; outline:none; min-width:150px; }
+        #userInput:focus { border-color:#6a8cff; }
+        .input-btn { background:#2a2b3d; border:none; border-radius:50%; width:44px; height:44px; color:#c0c0d0; font-size:20px; cursor:pointer; transition:0.2s; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+        .input-btn:hover { background:#3a3b4d; color:#fff; }
+        .input-btn.send { background:linear-gradient(135deg,#6a8cff,#a78bfa); color:#fff; }
+        .input-btn.send:hover { transform:scale(1.05); box-shadow:0 0 20px rgba(106,140,255,0.3); }
+        .input-btn.voice { background:#2a2b3d; color:#a78bfa; }
+        .input-btn.voice.recording { background:#ff6b6b; color:#fff; animation:pulse 1s infinite; }
+        @keyframes pulse { 0% { box-shadow:0 0 0 0 rgba(255,107,107,0.7); } 100% { box-shadow:0 0 0 15px rgba(255,107,107,0); } }
+        .input-btn.image { background:#2a2b3d; color:#6a8cff; }
+        #imageInput { display:none; }
+        .code-section { display:flex; gap:8px; align-items:center; padding:0 8px; }
+        .code-section input { background:#0b0d15; border:1px solid #2a2b3d; border-radius:20px; padding:6px 12px; color:#e0e0e0; font-size:13px; width:100px; outline:none; }
+        .code-section input:focus { border-color:#6a8cff; }
+        .code-status { font-size:12px; color:#6a72a0; }
+        .code-status.active { color:#51cf66; }
+        .code-status.expired { color:#ff6b6b; }
+        /* Mobile */
+        @media (max-width:600px) { #sidebar { position:fixed; top:0; left:-280px; width:280px; height:100%; transition:0.3s; z-index:500; } #sidebar.open { left:0; } #overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:400; } #overlay.active { display:block; } #menuBtn { display:block; } }
+        #menuBtn { display:none; background:none; border:none; color:#e0e0e0; font-size:24px; cursor:pointer; padding:0 8px; }
     </style>
 </head>
 <body>
-    <!-- Sidebar -->
-    <div id="sidebar">
-        <div class="header">
-            <h2>💬 Chats</h2>
-            <button id="newChatBtn">+ New</button>
-        </div>
-        <div class="chat-list" id="chatList"></div>
-    </div>
-    <!-- Main -->
-    <div id="main">
-        <div class="header">
-            <div class="logo">
-                <div class="avatar">A</div>
-                <span class="name">Aura</span>
-            </div>
-            <div class="right">
-                <button class="toggle-sidebar" id="toggleSidebar" title="Toggle sidebar">☰</button>
-            </div>
-        </div>
-        <div class="chat-box" id="chatBox">
-            <div class="message aura">
-                <div class="avatar">A</div>
-                <div class="bubble">Hi, I'm Aura. Ask me anything.</div>
-            </div>
-        </div>
-        <div class="input-area">
-            <input type="text" id="userInput" placeholder="Talk to Aura..." autofocus>
-            <button id="sendBtn">Send</button>
-        </div>
-    </div>
-<script>
-    let currentSessionId = null;
-    let sessions = [];
-    let conversationHistory = [];
-    let currentMessages = [];
 
-    const chatBox = document.getElementById('chatBox');
+<!-- LOGIN OVERLAY -->
+<div id="loginOverlay">
+    <div class="login-box">
+        <h2>🔐 Aura</h2>
+        <div class="sub">Login or create an account</div>
+        <form id="loginForm">
+            <input type="text" id="loginUsername" placeholder="Username" required>
+            <input type="password" id="loginPassword" placeholder="Password" required>
+            <button type="submit" class="btn btn-primary">Login</button>
+            <div class="login-error" id="loginError"></div>
+            <div class="login-switch">Don't have an account? <span id="switchToRegister">Register</span></div>
+        </form>
+        <form id="registerForm" style="display:none;">
+            <input type="text" id="regUsername" placeholder="Choose username" required>
+            <input type="password" id="regPassword" placeholder="Choose password" required>
+            <button type="submit" class="btn btn-primary">Register</button>
+            <div class="login-error" id="regError"></div>
+            <div class="login-switch">Already have an account? <span id="switchToLogin">Login</span></div>
+        </form>
+    </div>
+</div>
+
+<!-- CHAT APP -->
+<div id="chatApp" class="hidden">
+    <div id="sidebar">
+        <div class="brand">✦ Aura</div>
+        <div class="user-info">
+            <span id="userDisplay">User</span>
+            <span class="logout" id="logoutBtn">Logout</span>
+        </div>
+        <button id="newChatBtn">+ New Chat</button>
+        <ul id="chatList"></ul>
+    </div>
+    <div id="main">
+        <div style="display:flex; align-items:center; padding:12px 20px; background:#14151f; border-bottom:1px solid #1f2030;">
+            <button id="menuBtn">☰</button>
+            <span style="margin-left:12px; font-weight:500;">Chat</span>
+        </div>
+        <div id="messages"></div>
+        <div id="inputArea">
+            <button class="input-btn image" id="imageBtn" title="Upload image">🖼</button>
+            <input type="file" id="imageInput" accept="image/*">
+            <input type="text" id="userInput" placeholder="Type a message..." autocomplete="off">
+            <button class="input-btn voice" id="voiceBtn" title="Voice input">🎤</button>
+            <div class="code-section">
+                <input type="text" id="codeInput" placeholder="Code" maxlength="30">
+                <span class="code-status" id="codeStatus"></span>
+            </div>
+            <button class="input-btn send" id="sendBtn">➤</button>
+        </div>
+    </div>
+</div>
+<div id="overlay"></div>
+
+<script>
+    // ---------- AUTH ----------
+    const STORAGE_TOKEN = 'auraToken';
+    const STORAGE_USER = 'auraUser';
+
+    let token = localStorage.getItem(STORAGE_TOKEN);
+    let currentUser = localStorage.getItem(STORAGE_USER) || null;
+
+    const loginOverlay = document.getElementById('loginOverlay');
+    const chatApp = document.getElementById('chatApp');
+    const loginForm = document.getElementById('loginForm');
+    const registerForm = document.getElementById('registerForm');
+    const loginError = document.getElementById('loginError');
+    const regError = document.getElementById('regError');
+    const userDisplay = document.getElementById('userDisplay');
+
+    // Switch between login/register
+    document.getElementById('switchToRegister').addEventListener('click', () => {
+        loginForm.style.display = 'none';
+        registerForm.style.display = 'block';
+        loginError.textContent = '';
+        regError.textContent = '';
+    });
+    document.getElementById('switchToLogin').addEventListener('click', () => {
+        loginForm.style.display = 'block';
+        registerForm.style.display = 'none';
+        loginError.textContent = '';
+        regError.textContent = '';
+    });
+
+    // Login
+    loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('loginUsername').value.trim();
+        const password = document.getElementById('loginPassword').value;
+        if (!username || !password) { loginError.textContent = 'Please fill all fields'; return; }
+        loginError.textContent = 'Logging in...';
+        try {
+            const res = await fetch('/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await res.json();
+            if (data.success) {
+                token = data.token;
+                currentUser = data.username;
+                localStorage.setItem(STORAGE_TOKEN, token);
+                localStorage.setItem(STORAGE_USER, currentUser);
+                loginError.textContent = '';
+                showChat();
+            } else {
+                loginError.textContent = data.error || 'Login failed';
+            }
+        } catch (e) {
+            loginError.textContent = 'Network error';
+        }
+    });
+
+    // Register
+    registerForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('regUsername').value.trim();
+        const password = document.getElementById('regPassword').value;
+        if (!username || !password) { regError.textContent = 'Please fill all fields'; return; }
+        regError.textContent = 'Creating account...';
+        try {
+            const res = await fetch('/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await res.json();
+            if (data.success) {
+                regError.textContent = 'Account created! Please login.';
+                // Switch to login form
+                loginForm.style.display = 'block';
+                registerForm.style.display = 'none';
+                document.getElementById('loginUsername').value = username;
+                document.getElementById('loginPassword').value = '';
+                loginError.textContent = 'Account created, please login.';
+                regError.textContent = '';
+            } else {
+                regError.textContent = data.error || 'Registration failed';
+            }
+        } catch (e) {
+            regError.textContent = 'Network error';
+        }
+    });
+
+    // Logout
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+        localStorage.removeItem(STORAGE_TOKEN);
+        localStorage.removeItem(STORAGE_USER);
+        token = null;
+        currentUser = null;
+        location.reload();
+    });
+
+    // Verify token on load
+    async function verifyToken() {
+        if (!token) return false;
+        try {
+            const res = await fetch('/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token })
+            });
+            const data = await res.json();
+            if (data.valid) {
+                currentUser = data.username;
+                localStorage.setItem(STORAGE_USER, currentUser);
+                return true;
+            } else {
+                localStorage.removeItem(STORAGE_TOKEN);
+                localStorage.removeItem(STORAGE_USER);
+                token = null;
+                currentUser = null;
+                return false;
+            }
+        } catch (e) {
+            return false;
+        }
+    }
+
+    function showChat() {
+        loginOverlay.classList.add('hidden');
+        chatApp.classList.remove('hidden');
+        userDisplay.textContent = currentUser || 'User';
+        // Initialize chat UI
+        initChat();
+    }
+
+    // Wait for DOM ready
+    document.addEventListener('DOMContentLoaded', async () => {
+        const valid = await verifyToken();
+        if (valid && token) {
+            showChat();
+        } else {
+            loginOverlay.classList.remove('hidden');
+            chatApp.classList.add('hidden');
+        }
+    });
+
+    // ---------- CHAT UI (from original aura.html) ----------
+    // We'll define all chat functions here.
+    let currentSessionId = null;
+    let currentMessages = [];
+    let conversationHistory = [];
+    let sessions = [];
+    let isRecording = false;
+    let mediaRecorder = null;
+    let audioChunks = [];
+
+    const messagesDiv = document.getElementById('messages');
     const userInput = document.getElementById('userInput');
     const sendBtn = document.getElementById('sendBtn');
-    const chatList = document.getElementById('chatList');
     const newChatBtn = document.getElementById('newChatBtn');
-    const toggleSidebarBtn = document.getElementById('toggleSidebar');
+    const chatList = document.getElementById('chatList');
     const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('overlay');
+    const menuBtn = document.getElementById('menuBtn');
+    const voiceBtn = document.getElementById('voiceBtn');
+    const imageBtn = document.getElementById('imageBtn');
+    const imageInput = document.getElementById('imageInput');
+    const codeInput = document.getElementById('codeInput');
+    const codeStatus = document.getElementById('codeStatus');
+
+    const STORAGE_SESSIONS = 'auraSessions';
+    const STORAGE_CODE = 'auraCode';
+    const STORAGE_CODE_TIME = 'auraCodeTime';
+
+    let currentImageBase64 = null; // for pending image upload
 
     function loadSessions() {
         try {
-            const s = localStorage.getItem('auraSessions');
-            if (s) {
-                sessions = JSON.parse(s);
-                sessions = sessions.filter(s => s.id && Array.isArray(s.messages));
-                sessions.sort((a,b) => b.timestamp - a.timestamp);
-                return;
-            }
-        } catch(e) {}
-        sessions = [];
-    }
-    function saveSessions() {
-        localStorage.setItem('auraSessions', JSON.stringify(sessions));
+            const data = localStorage.getItem(STORAGE_SESSIONS);
+            if (data) sessions = JSON.parse(data);
+        } catch (e) { sessions = []; }
     }
 
-    function saveCurrentSession() {
-        if (currentSessionId) {
-            const cur = sessions.find(s => s.id === currentSessionId);
-            if (cur) {
-                cur.messages = currentMessages.slice();
-                cur.timestamp = Date.now();
-                if (currentMessages.length > 0 && cur.title === 'New Chat') {
-                    const first = currentMessages.find(m => m.role === 'user');
-                    if (first) cur.title = first.text.slice(0, 30) + (first.text.length > 30 ? '…' : '');
-                }
-                saveSessions();
-            }
-        }
+    function saveSessions() {
+        localStorage.setItem(STORAGE_SESSIONS, JSON.stringify(sessions));
     }
 
     function createSession(title) {
-        const id = Date.now().toString(36) + Math.random().toString(36).substr(2,4);
-        const session = {
-            id: id,
-            title: title || 'New Chat',
-            messages: [],
-            timestamp: Date.now()
-        };
-        sessions.unshift(session);
-        saveSessions();
-        return session;
+        const id = Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+        return { id, title, messages: [], timestamp: Date.now() };
     }
 
-    function switchToSession(sessionId) {
-        saveCurrentSession();
-        const session = sessions.find(s => s.id === sessionId);
-        if (!session) return;
-        currentSessionId = sessionId;
-        currentMessages = session.messages ? session.messages.slice() : [];
-        conversationHistory = [];
-        for (let msg of currentMessages) {
-            if (msg.role === 'user') conversationHistory.push({ role: 'user', content: msg.text });
-            else if (msg.role === 'aura') conversationHistory.push({ role: 'assistant', content: msg.text });
+    function saveCurrentSession() {
+        if (!currentSessionId) return;
+        const session = sessions.find(s => s.id === currentSessionId);
+        if (session) {
+            session.messages = currentMessages.slice();
+            session.timestamp = Date.now();
+            // Update title from first user message if not set
+            if (session.title === 'New Chat' && currentMessages.length > 0) {
+                const firstUser = currentMessages.find(m => m.role === 'user');
+                if (firstUser) {
+                    const title = firstUser.text.slice(0, 30) + (firstUser.text.length > 30 ? '...' : '');
+                    session.title = title;
+                }
+            }
+            saveSessions();
         }
-        renderMessages();
-        renderChatList();
-        userInput.placeholder = session.title === 'New Chat' ? 'Talk to Aura...' : 'Continue chat...';
     }
 
     function renderMessages() {
-        chatBox.innerHTML = '';
-        if (currentMessages.length === 0) {
+        messagesDiv.innerHTML = '';
+        currentMessages.forEach((msg, idx) => {
             const div = document.createElement('div');
-            div.className = 'message aura';
-            div.innerHTML = `<div class="avatar">A</div><div class="bubble">Hi, I'm Aura. Ask me anything.</div>`;
-            chatBox.appendChild(div);
-        } else {
-            for (let msg of currentMessages) {
-                const div = document.createElement('div');
-                div.className = 'message ' + msg.role;
-                const avatar = document.createElement('div');
-                avatar.className = 'avatar';
-                if (msg.role === 'user') avatar.textContent = 'U';
-                else if (msg.role === 'system') avatar.textContent = '!';
-                else avatar.textContent = 'A';
-                const bubble = document.createElement('div');
-                bubble.className = 'bubble';
-                bubble.textContent = msg.text;
-                div.appendChild(avatar);
-                div.appendChild(bubble);
-                chatBox.appendChild(div);
-            }
-        }
-        chatBox.scrollTop = chatBox.scrollHeight;
+            div.className = 'msg ' + msg.role;
+            div.textContent = msg.text;
+            const time = document.createElement('div');
+            time.className = 'time';
+            time.textContent = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : '';
+            div.appendChild(time);
+            messagesDiv.appendChild(div);
+        });
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
     }
 
     function renderChatList() {
         chatList.innerHTML = '';
-        if (sessions.length === 0) {
-            const empty = document.createElement('div');
-            empty.style.cssText = 'padding:16px;color:#4a507a;font-size:13px;text-align:center;';
-            empty.textContent = 'No chats yet';
-            chatList.appendChild(empty);
-            return;
-        }
-        for (let s of sessions) {
-            const item = document.createElement('div');
-            item.className = 'chat-item' + (s.id === currentSessionId ? ' active' : '');
-            const titleSpan = document.createElement('span');
-            titleSpan.className = 'title';
-            titleSpan.textContent = s.title || 'Chat';
-            const delBtn = document.createElement('button');
-            delBtn.className = 'delete-btn';
-            delBtn.textContent = '✕';
-            delBtn.title = 'Delete chat';
-            delBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                if (confirm('Delete this chat?')) {
-                    sessions = sessions.filter(x => x.id !== s.id);
-                    saveSessions();
-                    if (s.id === currentSessionId) {
-                        if (sessions.length > 0) {
-                            switchToSession(sessions[0].id);
-                        } else {
-                            const newS = createSession('New Chat');
-                            currentSessionId = newS.id;
-                            currentMessages = [];
-                            conversationHistory = [];
-                            renderMessages();
-                            renderChatList();
-                            userInput.placeholder = 'Talk to Aura...';
-                        }
-                    } else {
-                        renderChatList();
-                    }
-                }
-            });
-            item.appendChild(titleSpan);
-            item.appendChild(delBtn);
-            item.addEventListener('click', () => {
-                if (s.id !== currentSessionId) {
-                    switchToSession(s.id);
-                }
-            });
-            chatList.appendChild(item);
-        }
+        sessions.forEach(s => {
+            const li = document.createElement('li');
+            li.textContent = s.title || 'Chat';
+            if (s.id === currentSessionId) li.classList.add('active');
+            li.addEventListener('click', () => switchSession(s.id));
+            chatList.appendChild(li);
+        });
     }
 
-    function appendMessage(role, text, isSystem = false) {
-        const msg = { role: role, text: text };
-        currentMessages.push(msg);
-        if (role === 'user') {
-            conversationHistory.push({ role: 'user', content: text });
-        } else if (role === 'aura') {
-            conversationHistory.push({ role: 'assistant', content: text });
-        }
-        if (role === 'user' && currentMessages.length === 1) {
-            const session = sessions.find(s => s.id === currentSessionId);
-            if (session && session.title === 'New Chat') {
-                session.title = text.slice(0, 30) + (text.length > 30 ? '…' : '');
-                saveSessions();
-                renderChatList();
-                userInput.placeholder = 'Continue chat...';
-            }
-        }
-        const div = document.createElement('div');
-        div.className = 'message ' + role + (isSystem ? ' system' : '');
-        const avatar = document.createElement('div');
-        avatar.className = 'avatar';
-        if (role === 'user') avatar.textContent = 'U';
-        else if (role === 'system') avatar.textContent = '!';
-        else avatar.textContent = 'A';
-        const bubble = document.createElement('div');
-        bubble.className = 'bubble';
-        bubble.textContent = text;
-        div.appendChild(avatar);
-        div.appendChild(bubble);
-        chatBox.appendChild(div);
-        chatBox.scrollTop = chatBox.scrollHeight;
+    function switchSession(id) {
         saveCurrentSession();
-        return div;
-    }
-
-    function finalizeReply(typingDiv, reply) {
-        const bubble = typingDiv.querySelector('.bubble');
-        if (bubble) bubble.textContent = reply;
-        typingDiv.classList.remove('typing');
-        const lastMsg = currentMessages[currentMessages.length - 1];
-        if (lastMsg && lastMsg.role === 'aura') {
-            lastMsg.text = reply;
-            if (conversationHistory.length > 0 && conversationHistory[conversationHistory.length-1].role === 'assistant') {
-                conversationHistory[conversationHistory.length-1].content = reply;
-            }
-        }
-        saveCurrentSession();
+        const session = sessions.find(s => s.id === id);
+        if (!session) return;
+        currentSessionId = session.id;
+        currentMessages = session.messages ? session.messages.slice() : [];
+        conversationHistory = [];
+        currentMessages.forEach(msg => {
+            if (msg.role === 'user') conversationHistory.push({ role: 'user', content: msg.text });
+            else if (msg.role === 'aura') conversationHistory.push({ role: 'assistant', content: msg.text });
+        });
+        renderMessages();
         renderChatList();
-    }
-
-    async function callServer(endpoint, query) {
-        try {
-            const url = `/?${endpoint}=${encodeURIComponent(query)}&model=auto&history=${encodeURIComponent(JSON.stringify(conversationHistory))}`;
-            const resp = await fetch(url);
-            if (!resp.ok) {
-                return { error: 'Server is under maintenance. Please try again later.' };
-            }
-            const data = await resp.json();
-            if (data.error) return { error: data.error };
-            return data;
-        } catch(e) {
-            return { error: 'The server is currently under maintenance. Please try again later.' };
-        }
-    }
-
-    async function getDDG(query) {
-        try {
-            const url = 'https://api.duckduckgo.com/?q=' + encodeURIComponent(query) + '&format=json';
-            const resp = await fetch(url);
-            const data = await resp.json();
-            if (data.AbstractText && data.AbstractText !== '') return data.AbstractText;
-            if (data.RelatedTopics && data.RelatedTopics.length > 0 && data.RelatedTopics[0].Text) {
-                return data.RelatedTopics[0].Text.replace(/<[^>]+>/g, '');
-            }
-            return null;
-        } catch(e) { return null; }
-    }
-
-    function getDirectReply(input) {
-        const lower = input.toLowerCase().trim();
-        const greetings = ['hi', 'hello', 'hey', 'yo', 'sup', 'howdy', 'good morning', 'good evening'];
-        if (greetings.includes(lower) || greetings.some(g => lower === g)) {
-            const replies = ["Hey! What's up?", "Hello! How can I help?", "Hi there! What's on your mind?", "Yo! What's going on?", "Hey! Good to see you!"];
-            return replies[Math.floor(Math.random() * replies.length)];
-        }
-        if (lower.includes('good night')) return "Good night! Sleep well. 🌙";
-        if (lower.includes('thank you') || lower === 'thanks' || lower === 'ty') return "You're welcome! 😊";
-        if (lower.includes('bye') || lower === 'goodbye' || lower === 'cya') return "Bye! Take care! 👋";
-        if (lower.includes('what are you doing') || lower.includes('what you doing')) return "I'm talking to you! What are YOU doing? 😊";
-        if (lower.includes('how are you')) return "I'm doing great! How are you?";
-        if (lower.includes('what is your name') || lower.includes('who are you')) return "I'm Aura! Your AI companion. 😊";
-        if (lower.includes('tell me a joke')) {
-            const jokes = [
-                "Why did the AI cross the road? To process the other side!",
-                "What do you call an AI that sings? A Soul-ution!",
-                "Why did the computer go to the doctor? It had a virus!"
-            ];
-            return jokes[Math.floor(Math.random() * jokes.length)];
-        }
-        return null;
-    }
-
-    function getMemoryReply(input) {
-        const lower = input.toLowerCase().trim();
-        if (lower.includes('what did i say') || lower.includes('what i said') || lower.includes('earlier') || lower.includes('before')) {
-            const userMessages = currentMessages.filter(m => m.role === 'user');
-            if (userMessages.length > 1) {
-                const lastUser = userMessages[userMessages.length - 2];
-                if (lastUser) {
-                    return `You said: "${lastUser.text}"`;
-                }
-            }
-            return "I don't remember you saying anything earlier in this conversation.";
-        }
-        return null;
-    }
-
-    async function getReply(input) {
-        const raw = input.trim();
-
-        const memoryReply = getMemoryReply(raw);
-        if (memoryReply) return memoryReply;
-
-        const direct = getDirectReply(raw);
-        if (direct) return direct;
-
-        const result = await callServer('chat', raw);
-        if (result && result.response) {
-            conversationHistory.push({ role: 'user', content: raw });
-            conversationHistory.push({ role: 'assistant', content: result.response });
-            return result.response;
-        }
-
-        const ddgReply = await getDDG(raw);
-        if (ddgReply) {
-            conversationHistory.push({ role: 'user', content: raw });
-            conversationHistory.push({ role: 'assistant', content: ddgReply });
-            return ddgReply;
-        }
-
-        return "I don't have an answer for that right now. Try asking something else.";
+        userInput.placeholder = session.title === 'New Chat' ? 'Talk to Aura...' : 'Continue chat...';
+        if (window.innerWidth <= 600) { sidebar.classList.remove('open'); overlay.classList.remove('active'); }
     }
 
     async function sendMessage() {
         const text = userInput.value.trim();
-        if (!text) return;
+        if (!text && !currentImageBase64) return;
+        const userMsg = text || 'Describe this image';
+        // Add user message to UI
+        currentMessages.push({ role: 'user', text: userMsg, timestamp: Date.now() });
+        conversationHistory.push({ role: 'user', content: userMsg });
+        renderMessages();
         userInput.value = '';
         userInput.disabled = true;
         sendBtn.disabled = true;
 
-        if (!currentSessionId) {
-            const session = createSession('New Chat');
-            currentSessionId = session.id;
+        // Show typing
+        const typingDiv = document.createElement('div');
+        typingDiv.className = 'typing';
+        typingDiv.textContent = 'Aura is thinking...';
+        messagesDiv.appendChild(typingDiv);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+        const body = {
+            chat: userMsg,
+            history: conversationHistory,
+            token: token
+        };
+        if (currentImageBase64) {
+            body.image = currentImageBase64;
+            currentImageBase64 = null;
+        }
+        // Code
+        const code = localStorage.getItem(STORAGE_CODE);
+        const activated = parseInt(localStorage.getItem(STORAGE_CODE_TIME) || '0');
+        if (code && activated) {
+            body.code = code;
+            body.activated = activated;
         }
 
-        appendMessage('user', text);
-
-        const typingDiv = appendMessage('aura', '🤔 Thinking...');
-        typingDiv.classList.add('typing');
-
         try {
-            const reply = await getReply(text);
-            finalizeReply(typingDiv, reply);
-        } catch(e) {
+            const resp = await fetch('/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            const data = await resp.json();
+            if (data.needAuth) {
+                // Token expired or invalid
+                localStorage.removeItem(STORAGE_TOKEN);
+                localStorage.removeItem(STORAGE_USER);
+                token = null;
+                currentUser = null;
+                location.reload();
+                return;
+            }
+            if (data.response) {
+                finalizeReply(typingDiv, data.response);
+            } else {
+                finalizeReply(typingDiv, data.error || 'Server error.');
+            }
+            if (data.codeError) {
+                codeStatus.textContent = '❌ ' + data.codeError;
+                codeStatus.className = 'code-status expired';
+                if (data.codeError.includes('expired') || data.codeError.includes('invalid')) {
+                    localStorage.removeItem(STORAGE_CODE);
+                    localStorage.removeItem(STORAGE_CODE_TIME);
+                    updateCodeStatus();
+                }
+            }
+        } catch (e) {
             finalizeReply(typingDiv, 'Error: ' + e.message);
         }
 
@@ -583,6 +469,103 @@
         userInput.focus();
     }
 
+    function finalizeReply(typingDiv, replyText) {
+        typingDiv.remove();
+        currentMessages.push({ role: 'aura', text: replyText, timestamp: Date.now() });
+        conversationHistory.push({ role: 'assistant', content: replyText });
+        renderMessages();
+        saveCurrentSession();
+        renderChatList();
+    }
+
+    // Code redemption
+    function updateCodeStatus() {
+        const code = localStorage.getItem(STORAGE_CODE);
+        const activated = parseInt(localStorage.getItem(STORAGE_CODE_TIME) || '0');
+        if (code && activated) {
+            const diff = Date.now() - activated;
+            if (diff > 0 && diff < 30 * 24 * 60 * 60 * 1000) {
+                codeStatus.textContent = '✅ Active';
+                codeStatus.className = 'code-status active';
+                return;
+            } else {
+                localStorage.removeItem(STORAGE_CODE);
+                localStorage.removeItem(STORAGE_CODE_TIME);
+            }
+        }
+        codeStatus.textContent = '';
+        codeStatus.className = 'code-status';
+    }
+
+    codeInput.addEventListener('change', () => {
+        const val = codeInput.value.trim();
+        if (val) {
+            localStorage.setItem(STORAGE_CODE, val);
+            localStorage.setItem(STORAGE_CODE_TIME, Date.now().toString());
+            updateCodeStatus();
+            codeInput.value = '';
+        }
+    });
+
+    // Voice
+    voiceBtn.addEventListener('click', async () => {
+        if (isRecording) {
+            mediaRecorder.stop();
+            isRecording = false;
+            voiceBtn.classList.remove('recording');
+            return;
+        }
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            audioChunks = [];
+            mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+            mediaRecorder.onstop = async () => {
+                const blob = new Blob(audioChunks, { type: 'audio/webm' });
+                const formData = new FormData();
+                formData.append('audio', blob, 'voice.webm');
+                try {
+                    const res = await fetch('/upload', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const data = await res.json();
+                    if (data.text) {
+                        userInput.value = data.text;
+                        sendMessage();
+                    } else {
+                        alert('Transcription failed');
+                    }
+                } catch (e) {
+                    alert('Upload error');
+                }
+                stream.getTracks().forEach(t => t.stop());
+            };
+            mediaRecorder.start();
+            isRecording = true;
+            voiceBtn.classList.add('recording');
+        } catch (e) {
+            alert('Microphone access denied');
+        }
+    });
+
+    // Image
+    imageBtn.addEventListener('click', () => imageInput.click());
+    imageInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            const base64 = ev.target.result.split(',')[1];
+            currentImageBase64 = base64;
+            // Optionally show a preview or just send
+            userInput.placeholder = '📷 Image attached. Type a message or send.';
+        };
+        reader.readAsDataURL(file);
+        imageInput.value = '';
+    });
+
+    // New chat
     newChatBtn.addEventListener('click', () => {
         saveCurrentSession();
         const session = createSession('New Chat');
@@ -593,39 +576,49 @@
         renderChatList();
         userInput.placeholder = 'Talk to Aura...';
         userInput.focus();
+        if (window.innerWidth <= 600) { sidebar.classList.remove('open'); overlay.classList.remove('active'); }
     });
 
-    toggleSidebarBtn.addEventListener('click', () => {
-        sidebar.classList.toggle('collapsed');
+    // Menu toggle (mobile)
+    menuBtn.addEventListener('click', () => {
+        sidebar.classList.toggle('open');
+        overlay.classList.toggle('active');
+    });
+    overlay.addEventListener('click', () => {
+        sidebar.classList.remove('open');
+        overlay.classList.remove('active');
     });
 
-    loadSessions();
-    if (sessions.length === 0) {
-        const session = createSession('New Chat');
-        currentSessionId = session.id;
-        currentMessages = [];
-        conversationHistory = [];
-    } else {
-        const latest = sessions[0];
-        currentSessionId = latest.id;
-        currentMessages = latest.messages ? latest.messages.slice() : [];
-        conversationHistory = [];
-        for (let msg of currentMessages) {
-            if (msg.role === 'user') conversationHistory.push({ role: 'user', content: msg.text });
-            else if (msg.role === 'aura') conversationHistory.push({ role: 'assistant', content: msg.text });
+    // Init chat
+    function initChat() {
+        loadSessions();
+        if (sessions.length === 0) {
+            const session = createSession('New Chat');
+            currentSessionId = session.id;
+            currentMessages = [];
+            conversationHistory = [];
+        } else {
+            const latest = sessions[0];
+            currentSessionId = latest.id;
+            currentMessages = latest.messages ? latest.messages.slice() : [];
+            conversationHistory = [];
+            currentMessages.forEach(msg => {
+                if (msg.role === 'user') conversationHistory.push({ role: 'user', content: msg.text });
+                else if (msg.role === 'aura') conversationHistory.push({ role: 'assistant', content: msg.text });
+            });
+            userInput.placeholder = latest.title === 'New Chat' ? 'Talk to Aura...' : 'Continue chat...';
         }
-        userInput.placeholder = latest.title === 'New Chat' ? 'Talk to Aura...' : 'Continue chat...';
+        renderMessages();
+        renderChatList();
+        updateCodeStatus();
+
+        sendBtn.addEventListener('click', sendMessage);
+        userInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendMessage(); });
+        userInput.focus();
+
+        window.addEventListener('beforeunload', () => { saveCurrentSession(); });
     }
-    renderMessages();
-    renderChatList();
 
-    sendBtn.addEventListener('click', sendMessage);
-    userInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendMessage(); });
-    userInput.focus();
-
-    window.addEventListener('beforeunload', () => {
-        saveCurrentSession();
-    });
 </script>
 </body>
 </html>
