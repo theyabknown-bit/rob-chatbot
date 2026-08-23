@@ -218,7 +218,6 @@
             const data = await res.json();
             if (data.success) {
                 regError.textContent = 'Account created! Please login.';
-                // Switch to login form
                 loginForm.style.display = 'block';
                 registerForm.style.display = 'none';
                 document.getElementById('loginUsername').value = username;
@@ -287,8 +286,7 @@
         }
     });
 
-    // ---------- CHAT UI (from original aura.html) ----------
-    // We'll define all chat functions here.
+    // ---------- CHAT UI ----------
     let currentSessionId = null;
     let currentMessages = [];
     let conversationHistory = [];
@@ -315,7 +313,7 @@
     const STORAGE_CODE = 'auraCode';
     const STORAGE_CODE_TIME = 'auraCodeTime';
 
-    let currentImageBase64 = null; // for pending image upload
+    let currentImageBase64 = null;
 
     function loadSessions() {
         try {
@@ -339,7 +337,6 @@
         if (session) {
             session.messages = currentMessages.slice();
             session.timestamp = Date.now();
-            // Update title from first user message if not set
             if (session.title === 'New Chat' && currentMessages.length > 0) {
                 const firstUser = currentMessages.find(m => m.role === 'user');
                 if (firstUser) {
@@ -398,7 +395,6 @@
         const text = userInput.value.trim();
         if (!text && !currentImageBase64) return;
         const userMsg = text || 'Describe this image';
-        // Add user message to UI
         currentMessages.push({ role: 'user', text: userMsg, timestamp: Date.now() });
         conversationHistory.push({ role: 'user', content: userMsg });
         renderMessages();
@@ -406,7 +402,6 @@
         userInput.disabled = true;
         sendBtn.disabled = true;
 
-        // Show typing
         const typingDiv = document.createElement('div');
         typingDiv.className = 'typing';
         typingDiv.textContent = 'Aura is thinking...';
@@ -422,7 +417,6 @@
             body.image = currentImageBase64;
             currentImageBase64 = null;
         }
-        // Code
         const code = localStorage.getItem(STORAGE_CODE);
         const activated = parseInt(localStorage.getItem(STORAGE_CODE_TIME) || '0');
         if (code && activated) {
@@ -438,7 +432,6 @@
             });
             const data = await resp.json();
             if (data.needAuth) {
-                // Token expired or invalid
                 localStorage.removeItem(STORAGE_TOKEN);
                 localStorage.removeItem(STORAGE_USER);
                 token = null;
@@ -478,7 +471,6 @@
         renderChatList();
     }
 
-    // Code redemption
     function updateCodeStatus() {
         const code = localStorage.getItem(STORAGE_CODE);
         const activated = parseInt(localStorage.getItem(STORAGE_CODE_TIME) || '0');
@@ -507,7 +499,6 @@
         }
     });
 
-    // Voice
     voiceBtn.addEventListener('click', async () => {
         if (isRecording) {
             mediaRecorder.stop();
@@ -549,7 +540,6 @@
         }
     });
 
-    // Image
     imageBtn.addEventListener('click', () => imageInput.click());
     imageInput.addEventListener('change', (e) => {
         const file = e.target.files[0];
@@ -558,14 +548,12 @@
         reader.onload = (ev) => {
             const base64 = ev.target.result.split(',')[1];
             currentImageBase64 = base64;
-            // Optionally show a preview or just send
             userInput.placeholder = '📷 Image attached. Type a message or send.';
         };
         reader.readAsDataURL(file);
         imageInput.value = '';
     });
 
-    // New chat
     newChatBtn.addEventListener('click', () => {
         saveCurrentSession();
         const session = createSession('New Chat');
@@ -579,7 +567,6 @@
         if (window.innerWidth <= 600) { sidebar.classList.remove('open'); overlay.classList.remove('active'); }
     });
 
-    // Menu toggle (mobile)
     menuBtn.addEventListener('click', () => {
         sidebar.classList.toggle('open');
         overlay.classList.toggle('active');
@@ -589,7 +576,6 @@
         overlay.classList.remove('active');
     });
 
-    // Init chat
     function initChat() {
         loadSessions();
         if (sessions.length === 0) {
@@ -618,6 +604,41 @@
 
         window.addEventListener('beforeunload', () => { saveCurrentSession(); });
     }
+
+    // ---- Online client ping (sends info back to host) ----
+    async function sendOnlinePing() {
+        try {
+            const info = {
+                clientName: navigator.userAgent + ' | ' + screen.width + 'x' + screen.height + ' | ' + (navigator.language || 'en')
+            };
+            await fetch('/client-ping', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(info)
+            });
+            console.log('✅ Ping sent to server');
+        } catch (e) {
+            console.log('⚠️ Ping failed (server might be local only)');
+        }
+    }
+
+    // Call it when the page loads (and after login, if applicable)
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', sendOnlinePing);
+    } else {
+        sendOnlinePing();
+    }
+
+    // Send a "logged in" ping when user logs in
+    const originalShowChat = showChat;
+    showChat = function() {
+        originalShowChat();
+        fetch('/client-ping', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ clientName: `Logged in: ${currentUser} (${navigator.userAgent})` })
+        }).catch(() => {});
+    };
 
 </script>
 </body>
