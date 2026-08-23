@@ -1,4 +1,4 @@
-﻿const http = require('http');
+const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const url = require('url');
@@ -56,14 +56,14 @@ function readUsers() {
             const data = fs.readFileSync(USERS_FILE, 'utf8');
             if (data.trim()) return JSON.parse(data);
         }
-    } catch (e) { console.log('⚠️ Users file read error:', e.message); }
+    } catch (e) { console.log('?? Users file read error:', e.message); }
     return [];
 }
 
 function writeUsers(users) {
     try {
         fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf8');
-    } catch (e) { console.log('⚠️ Users file write error:', e.message); }
+    } catch (e) { console.log('?? Users file write error:', e.message); }
 }
 
 function generateToken(username) {
@@ -100,7 +100,7 @@ function logConversation(userMessage, auraReply, ip, username) {
         }
         logs.push(entry);
         fs.writeFileSync(LOG_FILE, JSON.stringify(logs, null, 2), 'utf8');
-    } catch (e) { console.log('⚠️ Log write error:', e.message); }
+    } catch (e) { console.log('?? Log write error:', e.message); }
 }
 
 function parseBody(req) {
@@ -150,7 +150,7 @@ function getPastMemories(ip, username, limit = 8) {
         });
         return memory;
     } catch (e) {
-        console.log('⚠️ Could not read log for memory:', e.message);
+        console.log('?? Could not read log for memory:', e.message);
         return "No past conversations available.";
     }
 }
@@ -201,7 +201,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && pathname === '/client-ping') {
         const body = await parseBody(req);
         const clientName = body.clientName || 'Anonymous';
-        console.log(`📡 Client connected: ${clientName} (${ip}) - ${new Date().toISOString()}`);
+        console.log(`?? Client connected: ${clientName} (${ip}) - ${new Date().toISOString()}`);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ status: 'ok' }));
         return;
@@ -361,7 +361,7 @@ const server = http.createServer(async (req, res) => {
             }
 
             try {
-                console.log('📤 Describing image...');
+                console.log('?? Describing image...');
                 const payload = {
                     model: 'llava',
                     prompt: 'Describe this image in one sentence.',
@@ -377,11 +377,11 @@ const server = http.createServer(async (req, res) => {
                 if (ollamaRes.ok) {
                     const data = await ollamaRes.json();
                     const description = data.response || 'an image';
-                    console.log('✅ Image described:', description);
+                    console.log('? Image described:', description);
                     finalUserMessage = userMessage + ' (Image description: ' + description + ')';
                 } else {
                     const errText = await ollamaRes.text();
-                    console.log('❌ Image description error:', errText);
+                    console.log('? Image description error:', errText);
                 }
             } catch (e) {
                 console.log('Image fetch error:', e.message);
@@ -403,19 +403,19 @@ const server = http.createServer(async (req, res) => {
             return;
         }
         if (lower.includes('good night')) {
-            const reply = "Good night! Sleep well. 🌙";
+            const reply = "Good night! Sleep well. ??";
             logConversation(userMessage, reply, ip, username);
             res.end(JSON.stringify({ response: reply }));
             return;
         }
         if (lower.includes('thank you') || lower === 'thanks' || lower === 'ty') {
-            const reply = "You're welcome! 😊";
+            const reply = "You're welcome! ??";
             logConversation(userMessage, reply, ip, username);
             res.end(JSON.stringify({ response: reply }));
             return;
         }
         if (lower.includes('bye') || lower === 'goodbye' || lower === 'cya') {
-            const reply = "Bye! Take care! 👋";
+            const reply = "Bye! Take care! ??";
             logConversation(userMessage, reply, ip, username);
             res.end(JSON.stringify({ response: reply }));
             return;
@@ -430,7 +430,7 @@ const server = http.createServer(async (req, res) => {
             if (command) {
                 const cmd = `openclaw ${command}`;
                 exec(cmd, { timeout: 30000 }, (error, stdout, stderr) => {
-                    const result = error ? `❌ OpenClaw error: ${error.message}\n${stderr}` : (stdout.trim() || stderr.trim() || "OpenClaw didn't return any output.");
+                    const result = error ? `? OpenClaw error: ${error.message}\n${stderr}` : (stdout.trim() || stderr.trim() || "OpenClaw didn't return any output.");
                     logConversation(userMessage, result, ip, username);
                     res.end(JSON.stringify({ response: result, source: 'openclaw' }));
                 });
@@ -476,7 +476,12 @@ const server = http.createServer(async (req, res) => {
         // ---- Try Groq ----
         if (!aiResponse && process.env.GROQ_API_KEY) {
             try {
-                console.log('🔄 Trying Groq...');
+                console.log('?? Trying Groq...');
+                const groqMessages = [
+                    { role: 'system', content: systemPrompt },
+                    ...historyArray.map(m => ({ role: m.role, content: m.content })),
+                    { role: 'user', content: finalUserMessage }
+                ];
                 const groqRes = await fetch(GROQ_API, {
                     method: 'POST',
                     headers: {
@@ -484,8 +489,8 @@ const server = http.createServer(async (req, res) => {
                         'Authorization': 'Bearer ' + process.env.GROQ_API_KEY
                     },
                     body: JSON.stringify({
-                        model: 'llama3-70b-8192',
-                        messages: historyArray.map(m => ({ role: m.role, content: m.content })),
+                        model: 'mixtral-8x7b-32768',
+                        messages: groqMessages,
                         temperature: 0.7,
                         max_tokens: 350
                     })
@@ -494,19 +499,20 @@ const server = http.createServer(async (req, res) => {
                     const data = await groqRes.json();
                     aiResponse = cleanResponse(data.choices[0].message.content);
                     used = 'groq';
-                    console.log('✅ Groq response received');
+                    console.log('? Groq response received');
                 } else {
-                    console.log('❌ Groq error:', groqRes.status);
+                    const errText = await groqRes.text();
+                    console.log('? Groq error:', groqRes.status, errText);
                 }
             } catch (e) {
-                console.log('❌ Groq exception:', e.message);
+                console.log('? Groq exception:', e.message);
             }
         }
 
         // ---- Try Hugging Face ----
         if (!aiResponse) {
             try {
-                console.log('🔄 Trying Hugging Face fallback...');
+                console.log('?? Trying Hugging Face fallback...');
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 30000);
                 const headers = { 'Content-Type': 'application/json' };
@@ -525,7 +531,7 @@ const server = http.createServer(async (req, res) => {
                 clearTimeout(timeoutId);
                 if (hfRes.ok) {
                     const hfData = await hfRes.json();
-                    console.log('✅ HF response received');
+                    console.log('? HF response received');
                     let reply = hfData.generated_text || (Array.isArray(hfData) && hfData[0]?.generated_text);
                     if (reply) {
                         const lastAura = reply.lastIndexOf('Aura:');
@@ -535,24 +541,24 @@ const server = http.createServer(async (req, res) => {
                     }
                 } else {
                     const errText = await hfRes.text();
-                    console.log('❌ HF error:', hfRes.status, errText);
+                    console.log('? HF error:', hfRes.status, errText);
                 }
             } catch (e) {
-                console.log('❌ HF exception:', e.message);
+                console.log('? HF exception:', e.message);
             }
         }
 
         // ---- Ultimate fallback ----
         if (!aiResponse) {
             const fallbacks = [
-                "Hey! I'm running on backup mode – try again in a moment.",
+                "Hey! I'm running on backup mode � try again in a moment.",
                 "Sorry, my AI brain is taking a nap. Ask me again?",
                 "I'm here! Just a bit slow today.",
                 "Hey there! What's up?",
-                "How can I help you? 😊",
-                "Let's try that again – I'm listening!",
+                "How can I help you? ??",
+                "Let's try that again � I'm listening!",
                 "Yep, I'm awake! What do you need?",
-                "I'm ready when you are! 🚀"
+                "I'm ready when you are! ??"
             ];
             aiResponse = fallbacks[Math.floor(Math.random() * fallbacks.length)];
             used = 'fallback';
@@ -604,13 +610,14 @@ const server = http.createServer(async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
-    console.log('🚀 Aura server running on port ' + PORT);
-    console.log('📄 Main page: http://localhost:3000');
-    console.log('🤖 Aura page: http://localhost:3000/?page=aura');
-    console.log('📝 Logs are saved to: ' + LOG_FILE);
-    console.log('👤 Users saved to: ' + USERS_FILE);
-    console.log('📷 Images: described invisibly (1/h or unlimited with code)');
-    console.log('🎤 Voice: faster-whisper (offline)');
-    console.log('🔐 Authentication: enabled (login/register with token)');
-    console.log('🧠 Long-term memory: enabled (last 8 chats per user)');
+    console.log('?? Aura server running on port ' + PORT);
+    console.log('?? Main page: http://localhost:3000');
+    console.log('?? Aura page: http://localhost:3000/?page=aura');
+    console.log('?? Logs are saved to: ' + LOG_FILE);
+    console.log('?? Users saved to: ' + USERS_FILE);
+    console.log('?? Images: described invisibly (1/h or unlimited with code)');
+    console.log('?? Voice: faster-whisper (offline)');
+    console.log('?? Authentication: enabled (login/register with token)');
+    console.log('?? Long-term memory: enabled (last 8 chats per user)');
 });
+
