@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Aura Works</title>
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
@@ -27,11 +30,7 @@
             letter-spacing: -2px;
             margin-bottom: 10px;
         }
-        .sub {
-            font-size: 24px;
-            color: #6a72a0;
-            margin-bottom: 40px;
-        }
+        .sub { font-size: 24px; color: #6a72a0; margin-bottom: 40px; }
         .btn {
             display: inline-block;
             padding: 16px 48px;
@@ -46,10 +45,7 @@
             cursor: pointer;
             border: none;
         }
-        .btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 0 50px rgba(106, 140, 255, 0.5);
-        }
+        .btn:hover { transform: scale(1.05); box-shadow: 0 0 50px rgba(106, 140, 255, 0.5); }
         .loading { color: #6a72a0; font-size: 18px; margin-top: 20px; }
     </style>
 </head>
@@ -61,15 +57,14 @@
         <div class="loading" id="loadingMsg">Fetching the latest tunnel...</div>
     </div>
     <script>
-        // ---- Gist URL with cache‑busting ----
-        const GIST_URL = 'https://gist.githubusercontent.com/theyabknown-bit/6b6904a28a45cd06ddff08714119860e/raw/063de0fdd03adf7ba0082aeecf976c4540e711ac/gistfile1.txt?t=' + Date.now();
-
+        const GIST_URL = 'https://gist.githubusercontent.com/theyabknown-bit/6b6904a28a45cd06ddff08714119860e/raw/gistfile1.txt?t=' + Date.now();
         let tunnelUrl = null;
-
         async function fetchTunnel() {
             try {
                 const resp = await fetch(GIST_URL);
-                const data = await resp.json();
+                if (!resp.ok) throw new Error('Gist fetch failed');
+                const text = await resp.text();
+                const data = JSON.parse(text);
                 if (data && data.tunnel) {
                     tunnelUrl = data.tunnel;
                     document.getElementById('loadingMsg').textContent = '✅ Ready! Click "Enter Aura" to chat.';
@@ -78,29 +73,19 @@
                     return;
                 }
             } catch (e) {
-                console.warn('Gist fetch failed, using fallback.', e);
+                console.warn('Gist fetch failed:', e);
             }
-            // Fallback: use your latest bore URL if Gist fails
-            tunnelUrl = 'https://odd-bird-h4ono.trybore.com';
-            document.getElementById('loadingMsg').textContent = '⚠️ Using fallback tunnel (may be outdated).';
-            document.getElementById('enterBtn').disabled = false;
-            document.getElementById('enterBtn').style.opacity = 1;
+            document.getElementById('loadingMsg').textContent = '❌ Could not fetch tunnel URL. Please try again later.';
+            document.getElementById('enterBtn').disabled = true;
+            document.getElementById('enterBtn').style.opacity = 0.5;
         }
-
         document.getElementById('enterBtn').addEventListener('click', () => {
-            if (tunnelUrl) {
-                window.location.href = tunnelUrl + '/?page=aura';
-            } else {
-                alert('Tunnel URL not yet loaded. Please wait.');
-            }
+            if (tunnelUrl) window.location.href = tunnelUrl + '/?page=aura&v=' + Date.now();
+            else alert('Tunnel URL not yet loaded. Please wait.');
         });
-
-        // Disable button until loaded
         document.getElementById('enterBtn').disabled = true;
         document.getElementById('enterBtn').style.opacity = 0.5;
-
         fetchTunnel();
     </script>
 </body>
 </html>
-
