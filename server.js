@@ -16,10 +16,15 @@ const SECRET_KEY = 'your-super-secret-key-change-me-12345';
 const VALID_CODES = ['theyabbro', 'free'];
 const imageCooldown = new Map();
 
-// ---- Daily limits per user ----
-const MAX_MESSAGES_PER_DAY = 50;
-const MAX_NEW_CHATS_PER_DAY = 5;
+// ---- Daily limits ----
+const MAX_MESSAGES_PER_DAY_FREE = 50;
+const MAX_NEW_CHATS_PER_DAY_FREE = 5;
+const MAX_MESSAGES_PER_DAY_PAID = 1000;
+const MAX_NEW_CHATS_PER_DAY_PAID = 100; // effectively unlimited
 const RESET_HOUR = 1; // 1 AM server time
+
+// ---- Premium code (change this or set as env var) ----
+const PREMIUM_CODE = process.env.PREMIUM_CODE || 'PREMIUM2026';
 
 function isImageAllowed(ip, code, activated) {
     if (code && activated) {
@@ -89,17 +94,16 @@ function verifyToken(token) {
     } catch (e) { return null; }
 }
 
-// ---- Helper: get user data (or create) ----
 function getUser(username) {
     let users = readUsers();
     let user = users.find(u => u.username === username);
     if (!user) return null;
-    // Initialize daily fields if missing
     const now = new Date();
     const currentDate = now.toISOString().slice(0,10);
     if (!user.dailyMessageCount) user.dailyMessageCount = 0;
     if (!user.dailyNewChatCount) user.dailyNewChatCount = 0;
     if (!user.lastDate) user.lastDate = currentDate;
+    if (!user.paid) user.paid = false;
     // Reset if new day
     if (user.lastDate !== currentDate) {
         user.dailyMessageCount = 0;
@@ -264,7 +268,8 @@ const server = http.createServer(async (req, res) => {
             salt,
             dailyMessageCount: 0,
             dailyNewChatCount: 0,
-            lastDate: new Date().toISOString().slice(0,10)
+            lastDate: new Date().toISOString().slice(0,10),
+            paid: false
         };
         users.push(newUser);
         writeUsers(users);
@@ -313,6 +318,40 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
+    // ---- Redeem Premium ----
+    if (req.method === 'POST' && pathname === '/redeem-premium') {
+        const body = await parseBody(req);
+        const { token, code } = body;
+        if (!token || !code) {
+            res.end(JSON.stringify({ success: false, error: 'Token and code required' }));
+            return;
+        }
+        const username = verifyToken(token);
+        if (!username) {
+            res.end(JSON.stringify({ success: false, error: 'Invalid token' }));
+            return;
+        }
+        if (code !== PREMIUM_CODE) {
+            res.end(JSON.stringify({ success: false, error: 'Invalid premium code' }));
+            return;
+        }
+        const result = getUser(username);
+        if (!result) {
+            res.end(JSON.stringify({ success: false, error: 'User not found' }));
+            return;
+        }
+        const { users, user, index } = result;
+        if (user.paid) {
+            res.end(JSON.stringify({ success: false, error: 'Already premium' }));
+            return;
+        }
+        user.paid = true;
+        users[index] = user;
+        writeUsers(users);
+        res.end(JSON.stringify({ success: true, message: 'Upgraded to premium!' }));
+        return;
+    }
+
     // ---- New Chat (check limit) ----
     if (req.method === 'POST' && pathname === '/new-chat') {
         const body = await parseBody(req);
@@ -326,21 +365,21 @@ const server = http.createServer(async (req, res) => {
             res.end(JSON.stringify({ success: false, error: 'Invalid token' }));
             return;
         }
-        const { users, user, index } = getUser(username);
-        if (!user) {
+        const result = getUser(username);
+        if (!result) {
             res.end(JSON.stringify({ success: false, error: 'User not found' }));
             return;
         }
-        // Check new chat limit
-        if (user.dailyNewChatCount >= MAX_NEW_CHATS_PER_DAY) {
+        const { users, user, index } = result;
+        const limit = user.paid ? MAX_NEW_CHATS_PER_DAY_PAID : MAX_NEW_CHATS_PER_DAY_FREE;
+        if (user.dailyNewChatCount >= limit) {
             const wait = getResetTimeString();
             res.end(JSON.stringify({ 
                 success: false, 
-                error: `You've reached the limit of ${MAX_NEW_CHATS_PER_DAY} new chats per day. Try again in ${wait}.`
+                error: `You've reached the limit of ${limit} new chats per day. Try again in ${wait}.`
             }));
             return;
         }
-        // Increment count
         user.dailyNewChatCount += 1;
         users[index] = user;
         writeUsers(users);
@@ -418,14 +457,16 @@ const server = http.createServer(async (req, res) => {
         const imageBase64 = image || null;
 
         // ---- Daily message limit ----
-        const { users, user, index } = getUser(username);
-        if (!user) {
+        const result = getUser(username);
+        if (!result) {
             res.end(JSON.stringify({ error: 'User not found' }));
             return;
         }
-        if (user.dailyMessageCount >= MAX_MESSAGES_PER_DAY) {
+        const { users, user, index } = result;
+        const msgLimit = user.paid ? MAX_MESSAGES_PER_DAY_PAID : MAX_MESSAGES_PER_DAY_FREE;
+        if (user.dailyMessageCount >= msgLimit) {
             const wait = getResetTimeString();
-            const reply = `You've reached the daily message limit (${MAX_MESSAGES_PER_DAY} messages). Please try again in ${wait} (resets at 1 AM).`;
+            const reply = `You've reached the daily message limit (${msgLimit} messages). Please try again in ${wait} (resets at 1 AM).`;
             logConversation(userMessage, reply, ip, username);
             res.end(JSON.stringify({ response: reply, source: 'limit' }));
             return;
@@ -491,7 +532,6 @@ const server = http.createServer(async (req, res) => {
         const greetings = ['hi', 'hello', 'hey', 'yo', 'sup', 'howdy', 'good morning', 'good evening'];
         if (greetings.includes(lower) || greetings.some(g => lower === g)) {
             const reply = ["Hey! What's up?", "Hello! How can I help?", "Hi there! What's on your mind?", "Yo! What's going on?", "Hey! Good to see you!"][Math.floor(Math.random() * 5)];
-            // Increment message count even for greetings
             user.dailyMessageCount += 1;
             users[index] = user;
             writeUsers(users);
@@ -537,7 +577,6 @@ const server = http.createServer(async (req, res) => {
                 const cmd = `openclaw ${command}`;
                 exec(cmd, { timeout: 30000 }, (error, stdout, stderr) => {
                     const result = error ? `❌ OpenClaw error: ${error.message}\n${stderr}` : (stdout.trim() || stderr.trim() || "OpenClaw didn't return any output.");
-                    // Increment message count for command
                     user.dailyMessageCount += 1;
                     users[index] = user;
                     writeUsers(users);
@@ -685,7 +724,7 @@ const server = http.createServer(async (req, res) => {
             used = 'fallback';
         }
 
-        // ---- Increment message count after successful AI (or fallback) ----
+        // ---- Increment message count ----
         user.dailyMessageCount += 1;
         users[index] = user;
         writeUsers(users);
@@ -745,5 +784,7 @@ server.listen(PORT, '0.0.0.0', () => {
     console.log('🎤 Voice: faster-whisper (offline)');
     console.log('🔐 Authentication: enabled (login/register with token)');
     console.log('🧠 Long-term memory: enabled (last 8 chats per user)');
-    console.log(`📊 Daily limits: ${MAX_MESSAGES_PER_DAY} messages, ${MAX_NEW_CHATS_PER_DAY} new chats (reset at ${RESET_HOUR}:00)`);
+    console.log(`📊 Free limits: ${MAX_MESSAGES_PER_DAY_FREE} messages, ${MAX_NEW_CHATS_PER_DAY_FREE} new chats`);
+    console.log(`💰 Paid limits: ${MAX_MESSAGES_PER_DAY_PAID} messages, unlimited new chats (${MAX_NEW_CHATS_PER_DAY_PAID})`);
+    console.log(`🔄 Reset at ${RESET_HOUR}:00`);
 });
