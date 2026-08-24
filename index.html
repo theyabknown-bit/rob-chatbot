@@ -54,41 +54,63 @@
         <div class="logo">Aura</div>
         <div class="sub">Your AI companion</div>
         <button class="btn" id="enterBtn">Enter Aura</button>
-        <div class="loading" id="loadingMsg">Fetching the latest tunnel...</div>
+        <div class="loading" id="loadingMsg">Checking servers...</div>
     </div>
     <script>
         const GIST_URL = 'https://gist.githubusercontent.com/theyabknown-bit/6b6904a28a45cd06ddff08714119860e/raw/gistfile1.txt?t=' + Date.now();
         const RENDER_URL = 'https://aura-r0y6.onrender.com';
-        let tunnelUrl = null;
+        let finalUrl = RENDER_URL; // default to Render
+
+        async function testTunnel(url) {
+            try {
+                // Try to fetch the main page with a short timeout
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 3000);
+                const resp = await fetch(url + '/?page=aura', {
+                    method: 'HEAD',
+                    signal: controller.signal
+                });
+                clearTimeout(timeout);
+                return resp.ok;
+            } catch (e) {
+                return false;
+            }
+        }
 
         async function fetchTunnel() {
+            document.getElementById('loadingMsg').textContent = 'Fetching tunnel...';
             try {
                 const resp = await fetch(GIST_URL);
                 if (!resp.ok) throw new Error('Gist fetch failed');
                 const text = await resp.text();
                 const data = JSON.parse(text);
                 if (data && data.tunnel) {
-                    tunnelUrl = data.tunnel;
-                    document.getElementById('loadingMsg').textContent = '✅ Ready! Click "Enter Aura" to chat.';
-                    document.getElementById('enterBtn').disabled = false;
-                    document.getElementById('enterBtn').style.opacity = 1;
-                    return;
+                    const tunnelUrl = data.tunnel;
+                    document.getElementById('loadingMsg').textContent = 'Testing tunnel...';
+                    const alive = await testTunnel(tunnelUrl);
+                    if (alive) {
+                        finalUrl = tunnelUrl;
+                        document.getElementById('loadingMsg').textContent = '✅ Tunnel available!';
+                    } else {
+                        document.getElementById('loadingMsg').textContent = '⚠️ Tunnel down, using Render backup.';
+                    }
+                } else {
+                    document.getElementById('loadingMsg').textContent = 'No tunnel in Gist, using Render.';
                 }
             } catch (e) {
-                console.warn('Gist fetch failed, using Render fallback:', e);
+                console.warn('Gist failed, using Render:', e);
+                document.getElementById('loadingMsg').textContent = '⚠️ Using Render backup.';
             }
-            // Fallback to Render
-            tunnelUrl = RENDER_URL;
-            document.getElementById('loadingMsg').textContent = '⚠️ Using backup server (Render)';
+            // Enable the button
             document.getElementById('enterBtn').disabled = false;
             document.getElementById('enterBtn').style.opacity = 1;
         }
 
         document.getElementById('enterBtn').addEventListener('click', () => {
-            if (tunnelUrl) {
-                window.location.href = tunnelUrl + '/?page=aura&v=' + Date.now();
+            if (finalUrl) {
+                window.location.href = finalUrl + '/?page=aura&v=' + Date.now();
             } else {
-                alert('Tunnel URL not loaded, please wait.');
+                alert('No server available. Please try again.');
             }
         });
 
