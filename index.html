@@ -124,11 +124,19 @@
             if (state === 'error') errorState.classList.remove('hidden');
         }
 
+        // Build URL correctly: base + ?page=aura&v=...
+        function buildChatUrl(base) {
+            // Remove any existing query string from the base
+            const cleanBase = base.split('?')[0];
+            return cleanBase + '/?page=aura&v=' + Date.now();
+        }
+
         async function testTunnel(url) {
             try {
                 const controller = new AbortController();
                 const timeout = setTimeout(() => controller.abort(), 5000);
-                const resp = await fetch(url + '/?page=aura', {
+                const testUrl = buildChatUrl(url);
+                const resp = await fetch(testUrl, {
                     method: 'GET',
                     signal: controller.signal
                 });
@@ -168,12 +176,11 @@
         // Event handlers
         enterBtn.addEventListener('click', () => {
             if (tunnelUrl) {
-                window.location.href = tunnelUrl + '/?page=aura&v=' + Date.now();
+                window.location.href = buildChatUrl(tunnelUrl);
             }
         });
 
         retryBtn.addEventListener('click', () => {
-            // Re-test the same tunnel URL
             if (tunnelUrl) {
                 showState('loading');
                 loadingMsg.textContent = 'Retrying tunnel...';
@@ -185,17 +192,16 @@
                     }
                 });
             } else {
-                // If no tunnel URL, fetch again
                 fetchAndTest();
             }
         });
 
         backupBtn.addEventListener('click', () => {
-            window.location.href = RENDER_URL + '/?page=aura&v=' + Date.now();
+            window.location.href = buildChatUrl(RENDER_URL);
         });
 
         errorBackupBtn.addEventListener('click', () => {
-            window.location.href = RENDER_URL + '/?page=aura&v=' + Date.now();
+            window.location.href = buildChatUrl(RENDER_URL);
         });
 
         // Start
