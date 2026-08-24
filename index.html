@@ -33,8 +33,8 @@
         .sub { font-size: 24px; color: #6a72a0; margin-bottom: 40px; }
         .btn {
             display: inline-block;
-            padding: 16px 48px;
-            font-size: 22px;
+            padding: 16px 32px;
+            font-size: 18px;
             font-weight: 600;
             color: #fff;
             background: linear-gradient(135deg, #6a8cff, #a78bfa);
@@ -44,83 +44,162 @@
             transition: transform 0.2s, box-shadow 0.2s;
             cursor: pointer;
             border: none;
+            margin: 8px;
         }
         .btn:hover { transform: scale(1.05); box-shadow: 0 0 50px rgba(106, 140, 255, 0.5); }
+        .btn-backup {
+            background: linear-gradient(135deg, #ff6b6b, #ff3366);
+            box-shadow: 0 0 30px rgba(255, 107, 107, 0.3);
+        }
+        .btn-backup:hover { box-shadow: 0 0 50px rgba(255, 107, 107, 0.5); }
+        .btn-retry {
+            background: linear-gradient(135deg, #ffa94d, #ff7a00);
+            box-shadow: 0 0 30px rgba(255, 169, 77, 0.3);
+        }
+        .btn-retry:hover { box-shadow: 0 0 50px rgba(255, 169, 77, 0.5); }
         .loading { color: #6a72a0; font-size: 18px; margin-top: 20px; }
+        .status { font-size: 20px; margin: 20px 0; }
+        .status.success { color: #51cf66; }
+        .status.warning { color: #ffa94d; }
+        .status.error { color: #ff6b6b; }
+        .hidden { display: none; }
+        .button-group { margin: 20px 0; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="logo">Aura</div>
         <div class="sub">Your AI companion</div>
-        <button class="btn" id="enterBtn">Enter Aura</button>
-        <div class="loading" id="loadingMsg">Checking servers...</div>
+
+        <div id="loadingState">
+            <div class="loading" id="loadingMsg">Checking servers...</div>
+        </div>
+
+        <div id="successState" class="hidden">
+            <div class="status success">✅ Tunnel is available!</div>
+            <button class="btn" id="enterBtn">Enter Aura</button>
+        </div>
+
+        <div id="fallbackState" class="hidden">
+            <div class="status warning">⚠️ Tunnel is not responding.</div>
+            <div class="button-group">
+                <button class="btn btn-retry" id="retryBtn">🔄 Retry Tunnel</button>
+                <button class="btn btn-backup" id="backupBtn">📡 Use Backup (Render)</button>
+            </div>
+            <div style="font-size:14px; color:#6a72a0; margin-top:10px;">
+                The backup server is always online.
+            </div>
+        </div>
+
+        <div id="errorState" class="hidden">
+            <div class="status error">❌ Could not fetch tunnel information.</div>
+            <button class="btn btn-backup" id="errorBackupBtn">📡 Use Backup (Render)</button>
+        </div>
     </div>
     <script>
         const GIST_URL = 'https://gist.githubusercontent.com/theyabknown-bit/6b6904a28a45cd06ddff08714119860e/raw/gistfile1.txt?t=' + Date.now();
         const RENDER_URL = 'https://aura-r0y6.onrender.com';
-        let finalUrl = RENDER_URL; // default fallback
+        let tunnelUrl = null;
+
+        // UI elements
+        const loadingState = document.getElementById('loadingState');
+        const successState = document.getElementById('successState');
+        const fallbackState = document.getElementById('fallbackState');
+        const errorState = document.getElementById('errorState');
+        const loadingMsg = document.getElementById('loadingMsg');
+
+        const enterBtn = document.getElementById('enterBtn');
+        const retryBtn = document.getElementById('retryBtn');
+        const backupBtn = document.getElementById('backupBtn');
+        const errorBackupBtn = document.getElementById('errorBackupBtn');
+
+        function showState(state) {
+            loadingState.classList.add('hidden');
+            successState.classList.add('hidden');
+            fallbackState.classList.add('hidden');
+            errorState.classList.add('hidden');
+            if (state === 'loading') loadingState.classList.remove('hidden');
+            if (state === 'success') successState.classList.remove('hidden');
+            if (state === 'fallback') fallbackState.classList.remove('hidden');
+            if (state === 'error') errorState.classList.remove('hidden');
+        }
 
         async function testTunnel(url) {
             try {
-                // Use GET with a short timeout to check if the page loads
                 const controller = new AbortController();
-                const timeout = setTimeout(() => controller.abort(), 4000);
+                const timeout = setTimeout(() => controller.abort(), 5000);
                 const resp = await fetch(url + '/?page=aura', {
                     method: 'GET',
-                    signal: controller.signal,
-                    // Only fetch headers to save bandwidth, but we need to see if it's alive
-                    // We can use a small range request or just check status.
-                    // But some servers might not support HEAD, so we do GET and read just a small chunk.
+                    signal: controller.signal
                 });
                 clearTimeout(timeout);
-                // If we get any successful response (2xx or 3xx), consider it alive.
                 return resp.ok || resp.status === 304 || resp.status === 302 || resp.status === 301;
             } catch (e) {
                 return false;
             }
         }
 
-        async function fetchTunnel() {
-            document.getElementById('loadingMsg').textContent = 'Fetching tunnel...';
+        async function fetchAndTest() {
+            showState('loading');
+            loadingMsg.textContent = 'Fetching tunnel URL...';
             try {
                 const resp = await fetch(GIST_URL);
                 if (!resp.ok) throw new Error('Gist fetch failed');
                 const text = await resp.text();
                 const data = JSON.parse(text);
                 if (data && data.tunnel) {
-                    const tunnelUrl = data.tunnel;
-                    document.getElementById('loadingMsg').textContent = 'Testing tunnel...';
+                    tunnelUrl = data.tunnel;
+                    loadingMsg.textContent = 'Testing tunnel...';
                     const alive = await testTunnel(tunnelUrl);
                     if (alive) {
-                        finalUrl = tunnelUrl;
-                        document.getElementById('loadingMsg').textContent = '✅ Tunnel available!';
+                        showState('success');
                     } else {
-                        document.getElementById('loadingMsg').textContent = '⚠️ Tunnel down, using Render backup.';
+                        showState('fallback');
                     }
                 } else {
-                    document.getElementById('loadingMsg').textContent = 'No tunnel in Gist, using Render.';
+                    throw new Error('No tunnel in Gist');
                 }
             } catch (e) {
-                console.warn('Gist failed, using Render:', e);
-                document.getElementById('loadingMsg').textContent = '⚠️ Using Render backup.';
+                console.warn('Error:', e);
+                showState('error');
             }
-            // Enable the button
-            document.getElementById('enterBtn').disabled = false;
-            document.getElementById('enterBtn').style.opacity = 1;
         }
 
-        document.getElementById('enterBtn').addEventListener('click', () => {
-            if (finalUrl) {
-                window.location.href = finalUrl + '/?page=aura&v=' + Date.now();
-            } else {
-                alert('No server available. Please try again.');
+        // Event handlers
+        enterBtn.addEventListener('click', () => {
+            if (tunnelUrl) {
+                window.location.href = tunnelUrl + '/?page=aura&v=' + Date.now();
             }
         });
 
-        document.getElementById('enterBtn').disabled = true;
-        document.getElementById('enterBtn').style.opacity = 0.5;
-        fetchTunnel();
+        retryBtn.addEventListener('click', () => {
+            // Re-test the same tunnel URL
+            if (tunnelUrl) {
+                showState('loading');
+                loadingMsg.textContent = 'Retrying tunnel...';
+                testTunnel(tunnelUrl).then(alive => {
+                    if (alive) {
+                        showState('success');
+                    } else {
+                        showState('fallback');
+                    }
+                });
+            } else {
+                // If no tunnel URL, fetch again
+                fetchAndTest();
+            }
+        });
+
+        backupBtn.addEventListener('click', () => {
+            window.location.href = RENDER_URL + '/?page=aura&v=' + Date.now();
+        });
+
+        errorBackupBtn.addEventListener('click', () => {
+            window.location.href = RENDER_URL + '/?page=aura&v=' + Date.now();
+        });
+
+        // Start
+        fetchAndTest();
     </script>
 </body>
 </html>
