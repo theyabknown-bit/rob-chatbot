@@ -132,7 +132,10 @@
         }
 
         function buildChatUrl(base) {
-            const clean = base.split('?')[0];
+            // Remove any query string
+            let clean = base.split('?')[0];
+            // Remove trailing slash if present
+            if (clean.endsWith('/')) clean = clean.slice(0, -1);
             return clean + '/?page=aura&v=' + Date.now();
         }
 
@@ -205,7 +208,6 @@
             if (tunnelUrl) {
                 window.location.href = buildChatUrl(tunnelUrl);
             } else {
-                // If tunnelUrl is null, fallback to Render
                 window.location.href = buildChatUrl(RENDER_URL);
             }
         });
