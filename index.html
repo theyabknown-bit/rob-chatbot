@@ -59,19 +59,23 @@
     <script>
         const GIST_URL = 'https://gist.githubusercontent.com/theyabknown-bit/6b6904a28a45cd06ddff08714119860e/raw/gistfile1.txt?t=' + Date.now();
         const RENDER_URL = 'https://aura-r0y6.onrender.com';
-        let finalUrl = RENDER_URL; // default to Render
+        let finalUrl = RENDER_URL; // default fallback
 
         async function testTunnel(url) {
             try {
-                // Try to fetch the main page with a short timeout
+                // Use GET with a short timeout to check if the page loads
                 const controller = new AbortController();
-                const timeout = setTimeout(() => controller.abort(), 3000);
+                const timeout = setTimeout(() => controller.abort(), 4000);
                 const resp = await fetch(url + '/?page=aura', {
-                    method: 'HEAD',
-                    signal: controller.signal
+                    method: 'GET',
+                    signal: controller.signal,
+                    // Only fetch headers to save bandwidth, but we need to see if it's alive
+                    // We can use a small range request or just check status.
+                    // But some servers might not support HEAD, so we do GET and read just a small chunk.
                 });
                 clearTimeout(timeout);
-                return resp.ok;
+                // If we get any successful response (2xx or 3xx), consider it alive.
+                return resp.ok || resp.status === 304 || resp.status === 302 || resp.status === 301;
             } catch (e) {
                 return false;
             }
