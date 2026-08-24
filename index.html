@@ -60,6 +60,7 @@
         const GIST_URL = 'https://gist.githubusercontent.com/theyabknown-bit/6b6904a28a45cd06ddff08714119860e/raw/gistfile1.txt?t=' + Date.now();
         const RENDER_URL = 'https://aura-r0y6.onrender.com';
         let tunnelUrl = null;
+
         async function fetchTunnel() {
             try {
                 const resp = await fetch(GIST_URL);
@@ -76,16 +77,21 @@
             } catch (e) {
                 console.warn('Gist fetch failed, using Render fallback:', e);
             }
-            // Fallback to Render if tunnel not available
+            // Fallback to Render
             tunnelUrl = RENDER_URL;
             document.getElementById('loadingMsg').textContent = '⚠️ Using backup server (Render)';
             document.getElementById('enterBtn').disabled = false;
             document.getElementById('enterBtn').style.opacity = 1;
         }
+
         document.getElementById('enterBtn').addEventListener('click', () => {
-            if (tunnelUrl) window.location.href = tunnelUrl + '/?page=aura&v=' + Date.now();
-            else alert('Tunnel URL not yet loaded. Please wait.');
+            if (tunnelUrl) {
+                window.location.href = tunnelUrl + '/?page=aura&v=' + Date.now();
+            } else {
+                alert('Tunnel URL not loaded, please wait.');
+            }
         });
+
         document.getElementById('enterBtn').disabled = true;
         document.getElementById('enterBtn').style.opacity = 0.5;
         fetchTunnel();
