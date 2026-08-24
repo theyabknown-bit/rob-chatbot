@@ -33,46 +33,105 @@
         .sub { font-size: 24px; color: #6a72a0; margin-bottom: 40px; }
         .btn {
             display: inline-block;
-            padding: 16px 48px;
-            font-size: 22px;
+            padding: 12px 24px;
+            font-size: 16px;
             font-weight: 600;
             color: #fff;
             background: linear-gradient(135deg, #6a8cff, #a78bfa);
             border-radius: 50px;
             text-decoration: none;
-            box-shadow: 0 0 30px rgba(106, 140, 255, 0.3);
+            box-shadow: 0 0 20px rgba(106, 140, 255, 0.3);
             transition: transform 0.2s, box-shadow 0.2s;
             cursor: pointer;
             border: none;
+            margin: 6px;
         }
-        .btn:hover { transform: scale(1.05); box-shadow: 0 0 50px rgba(106, 140, 255, 0.5); }
+        .btn:hover { transform: scale(1.05); box-shadow: 0 0 40px rgba(106, 140, 255, 0.5); }
+        .btn-backup {
+            background: linear-gradient(135deg, #ff6b6b, #ff3366);
+            box-shadow: 0 0 20px rgba(255, 107, 107, 0.3);
+        }
+        .btn-backup:hover { box-shadow: 0 0 40px rgba(255, 107, 107, 0.5); }
+        .btn-retry {
+            background: linear-gradient(135deg, #ffa94d, #ff7a00);
+            box-shadow: 0 0 20px rgba(255, 169, 77, 0.3);
+        }
+        .btn-retry:hover { box-shadow: 0 0 40px rgba(255, 169, 77, 0.5); }
+        .btn-anyway {
+            background: linear-gradient(135deg, #66ccff, #3399ff);
+            box-shadow: 0 0 20px rgba(51, 153, 255, 0.3);
+        }
+        .btn-anyway:hover { box-shadow: 0 0 40px rgba(51, 153, 255, 0.5); }
         .loading { color: #6a72a0; font-size: 18px; margin-top: 20px; }
-        .status { font-size: 16px; margin-top: 10px; }
+        .status { font-size: 18px; margin: 15px 0; }
         .status.success { color: #51cf66; }
         .status.warning { color: #ffa94d; }
         .status.error { color: #ff6b6b; }
+        .hidden { display: none; }
+        .button-group { margin: 20px 0; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="logo">Aura</div>
         <div class="sub">Your AI companion</div>
-        <button class="btn" id="enterBtn">Enter Aura</button>
-        <div class="loading" id="loadingMsg">Checking servers...</div>
-        <div class="status" id="statusMsg"></div>
+
+        <div id="loadingState">
+            <div class="loading" id="loadingMsg">Checking servers...</div>
+        </div>
+
+        <div id="successState" class="hidden">
+            <div class="status success">✅ Tunnel is available!</div>
+            <button class="btn" id="enterBtn">Enter Aura</button>
+        </div>
+
+        <div id="fallbackState" class="hidden">
+            <div class="status warning">⚠️ Tunnel is not responding.</div>
+            <div class="button-group">
+                <button class="btn btn-retry" id="retryBtn">🔄 Retry Tunnel</button>
+                <button class="btn btn-anyway" id="anywayBtn">🚀 Enter Anyway</button>
+                <button class="btn btn-backup" id="backupBtn">📡 Use Backup (Render)</button>
+            </div>
+            <div style="font-size:14px; color:#6a72a0; margin-top:10px;">
+                "Enter Anyway" goes to the tunnel directly (even if it seems down).
+            </div>
+        </div>
+
+        <div id="errorState" class="hidden">
+            <div class="status error">❌ Could not fetch tunnel information.</div>
+            <button class="btn btn-backup" id="errorBackupBtn">📡 Use Backup (Render)</button>
+        </div>
     </div>
     <script>
         const GIST_URL = 'https://gist.githubusercontent.com/theyabknown-bit/6b6904a28a45cd06ddff08714119860e/raw/gistfile1.txt?t=' + Date.now();
         const RENDER_URL = 'https://aura-r0y6.onrender.com';
-        let targetUrl = RENDER_URL; // default fallback
-        let ready = false;
+        let tunnelUrl = null;
+
+        // UI elements
+        const loadingState = document.getElementById('loadingState');
+        const successState = document.getElementById('successState');
+        const fallbackState = document.getElementById('fallbackState');
+        const errorState = document.getElementById('errorState');
+        const loadingMsg = document.getElementById('loadingMsg');
 
         const enterBtn = document.getElementById('enterBtn');
-        const loadingMsg = document.getElementById('loadingMsg');
-        const statusMsg = document.getElementById('statusMsg');
+        const retryBtn = document.getElementById('retryBtn');
+        const anywayBtn = document.getElementById('anywayBtn');
+        const backupBtn = document.getElementById('backupBtn');
+        const errorBackupBtn = document.getElementById('errorBackupBtn');
+
+        function showState(state) {
+            loadingState.classList.add('hidden');
+            successState.classList.add('hidden');
+            fallbackState.classList.add('hidden');
+            errorState.classList.add('hidden');
+            if (state === 'loading') loadingState.classList.remove('hidden');
+            if (state === 'success') successState.classList.remove('hidden');
+            if (state === 'fallback') fallbackState.classList.remove('hidden');
+            if (state === 'error') errorState.classList.remove('hidden');
+        }
 
         function buildChatUrl(base) {
-            // Remove any existing query string
             const clean = base.split('?')[0];
             return clean + '/?page=aura&v=' + Date.now();
         }
@@ -93,51 +152,74 @@
             }
         }
 
-        async function init() {
-            loadingMsg.textContent = 'Fetching tunnel...';
+        async function fetchAndTest() {
+            showState('loading');
+            loadingMsg.textContent = 'Fetching tunnel URL...';
             try {
                 const resp = await fetch(GIST_URL);
                 if (!resp.ok) throw new Error('Gist fetch failed');
                 const text = await resp.text();
                 const data = JSON.parse(text);
                 if (data && data.tunnel) {
-                    const tunnelUrl = data.tunnel;
+                    tunnelUrl = data.tunnel;
                     loadingMsg.textContent = 'Testing tunnel...';
                     const alive = await testTunnel(tunnelUrl);
                     if (alive) {
-                        targetUrl = tunnelUrl;
-                        statusMsg.textContent = '✅ Tunnel active';
-                        statusMsg.className = 'status success';
+                        showState('success');
                     } else {
-                        statusMsg.textContent = '⚠️ Tunnel offline, using backup';
-                        statusMsg.className = 'status warning';
+                        showState('fallback');
                     }
                 } else {
-                    statusMsg.textContent = '⚠️ No tunnel found, using backup';
-                    statusMsg.className = 'status warning';
+                    throw new Error('No tunnel in Gist');
                 }
             } catch (e) {
-                console.warn('Gist failed, using Render:', e);
-                statusMsg.textContent = '⚠️ Using backup server (Render)';
-                statusMsg.className = 'status warning';
+                console.warn('Error:', e);
+                showState('error');
             }
-            loadingMsg.textContent = '✅ Ready';
-            enterBtn.disabled = false;
-            enterBtn.style.opacity = 1;
-            ready = true;
         }
 
+        // Event handlers
         enterBtn.addEventListener('click', () => {
-            if (ready) {
-                window.location.href = buildChatUrl(targetUrl);
-            } else {
-                alert('Please wait for the server check to finish.');
+            if (tunnelUrl) {
+                window.location.href = buildChatUrl(tunnelUrl);
             }
         });
 
-        enterBtn.disabled = true;
-        enterBtn.style.opacity = 0.5;
-        init();
+        retryBtn.addEventListener('click', () => {
+            if (tunnelUrl) {
+                showState('loading');
+                loadingMsg.textContent = 'Retrying tunnel...';
+                testTunnel(tunnelUrl).then(alive => {
+                    if (alive) {
+                        showState('success');
+                    } else {
+                        showState('fallback');
+                    }
+                });
+            } else {
+                fetchAndTest();
+            }
+        });
+
+        anywayBtn.addEventListener('click', () => {
+            if (tunnelUrl) {
+                window.location.href = buildChatUrl(tunnelUrl);
+            } else {
+                // If tunnelUrl is null, fallback to Render
+                window.location.href = buildChatUrl(RENDER_URL);
+            }
+        });
+
+        backupBtn.addEventListener('click', () => {
+            window.location.href = buildChatUrl(RENDER_URL);
+        });
+
+        errorBackupBtn.addEventListener('click', () => {
+            window.location.href = buildChatUrl(RENDER_URL);
+        });
+
+        // Start
+        fetchAndTest();
     </script>
 </body>
 </html>
